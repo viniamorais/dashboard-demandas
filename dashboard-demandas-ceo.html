@@ -3088,6 +3088,15 @@ async function updateCampo(row, fieldRow, value) {
 
   const fieldBackend = FIELD_BACKEND_MAP[fieldRow] || fieldRow;
 
+  // Log de diagnóstico: aparece no DevTools (F12 → Console)
+  // Útil pra debugar quando algum campo dá erro de validação no backend
+  console.log('[updateCampo] Enviando:', {
+    field: fieldBackend,
+    value: value,
+    valueLength: typeof value === 'string' ? value.length : null,
+    valueChars: typeof value === 'string' ? Array.from(value).map(c => c.charCodeAt(0)) : null
+  });
+
   try {
     const res = await fetch(WEB_APP_URL, {
       method: 'POST',
@@ -3101,6 +3110,7 @@ async function updateCampo(row, fieldRow, value) {
       })
     });
     const data = await res.json();
+    console.log('[updateCampo] Resposta:', data);
     if (!data.ok) {
       showToast('Erro ao salvar: ' + (data.erro || 'desconhecido'), 'error');
       return false;
