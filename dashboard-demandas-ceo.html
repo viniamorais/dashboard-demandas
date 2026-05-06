@@ -678,6 +678,98 @@ tr.row-late:hover { background: rgba(220,38,38,0.05); }
 .banner-danger  { background: var(--danger-light);  color: var(--danger);  border: 1px solid #fecaca; }
 
 /* ==============================================================
+   TOAST · notificações flutuantes (substituem alert/confirm)
+   ==============================================================
+   alert() e confirm() são bloqueados quando o dashboard é
+   embarcado em iframe (Google Sites). Toast funciona em qualquer
+   contexto e tem UX bem melhor: não interrompe o usuário, some
+   sozinho, permite múltiplos empilhados.
+   ============================================================== */
+#toastContainer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;  /* deixa cliques passarem para o resto da UI */
+  max-width: calc(100vw - 48px);
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-lg);
+  border-left: 4px solid var(--navy-700);
+  min-width: 280px;
+  max-width: 420px;
+  pointer-events: auto;  /* mas o toast em si recebe cliques */
+  animation: toast-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.toast.toast-leaving {
+  animation: toast-slide-out 0.25s ease forwards;
+}
+@keyframes toast-slide-out {
+  to { opacity: 0; transform: translateX(20px); }
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--navy-700);
+}
+.toast-icon svg { width: 20px; height: 20px; }
+
+.toast-message {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-800);
+  line-height: 1.45;
+  padding-top: 1px;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--gray-400);
+  font-size: 18px;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.toast-close:hover { background: var(--gray-100); color: var(--gray-700); }
+
+/* Variantes por tipo: borda lateral + cor do ícone */
+.toast.toast-success { border-left-color: var(--success); }
+.toast.toast-success .toast-icon { color: var(--success); }
+.toast.toast-error   { border-left-color: var(--danger);  }
+.toast.toast-error   .toast-icon { color: var(--danger); }
+.toast.toast-warning { border-left-color: var(--warning); }
+.toast.toast-warning .toast-icon { color: var(--warning); }
+.toast.toast-info    { border-left-color: var(--info);    }
+.toast.toast-info    .toast-icon { color: var(--info); }
+
+/* ==============================================================
    BANNER DE ALERTA DE ATRASADAS
    Aparece só quando há demandas com prazo vencido em aberto.
    ============================================================== */
@@ -1648,6 +1740,9 @@ tbody tr.empty-row { cursor: default; }
   <div class="spinner"></div>
 </div>
 
+<!-- Container de notificações flutuantes (toasts) — substituem alert()/confirm() -->
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
 <script>
 /* ==============================================================
    ============================================================
@@ -1971,20 +2066,15 @@ function extractThreadId(linkBruto) {
  */
 async function finalizarDemanda(row, btnEl) {
   if (!WEB_APP_URL || !WEB_APP_TOKEN) {
-    alert('Recurso de finalização ainda não foi configurado. ' +
-          'Verifique as constantes WEB_APP_URL e WEB_APP_TOKEN no código.');
+    showToast('Recurso de finalização não configurado. Verifique WEB_APP_URL e WEB_APP_TOKEN no código.', 'warning');
     return;
   }
 
   const threadId = extractThreadId(row.Link_Email);
   if (!threadId) {
-    alert('Não foi possível identificar esta demanda (link inválido na planilha).');
+    showToast('Não foi possível identificar esta demanda (link inválido na planilha).', 'error');
     return;
   }
-
-  const titulo = getTitle(row);
-  const ok = confirm('Marcar como Finalizada?\n\n' + titulo);
-  if (!ok) return;
 
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Finalizando...'; }
 
@@ -2003,7 +2093,7 @@ async function finalizarDemanda(row, btnEl) {
 
     const data = await res.json();
     if (!data.ok) {
-      alert('Erro ao finalizar: ' + (data.erro || 'desconhecido'));
+      showToast('Erro ao finalizar: ' + (data.erro || 'desconhecido'), 'error');
       if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Finalizar'; }
       return;
     }
@@ -2011,12 +2101,13 @@ async function finalizarDemanda(row, btnEl) {
     // Sucesso: atualiza localmente sem esperar o cache do CSV
     row.Status = 'Finalizada';
     renderAll();
+    showToast('Demanda finalizada: ' + getTitle(row), 'success');
     // Se o drawer estiver aberto com essa demanda, fecha (a ação foi cumprida)
     if (currentDrawerRow === row) closeDrawer();
 
   } catch (err) {
     console.error('Falha na chamada ao Web App:', err);
-    alert('Falha de rede ao finalizar. Tente novamente em alguns segundos.');
+    showToast('Falha de rede ao finalizar. Tente novamente em alguns segundos.', 'error');
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Finalizar'; }
   }
 }
@@ -2038,6 +2129,53 @@ function showBanner(type, message) {
 
 function hideBanner() {
   document.getElementById('banner').style.display = 'none';
+}
+
+/* ==============================================================
+   TOAST · notificações flutuantes
+   ==============================================================
+   Substitui alert()/confirm() — ambos são bloqueados quando o
+   dashboard roda dentro de iframe (Google Sites). Toast funciona
+   em qualquer contexto.
+
+   Uso:
+     showToast('Salvo com sucesso', 'success');
+     showToast('Erro ao salvar: conexão perdida', 'error');
+     showToast('Adiado em 3 dias', 'info');
+     showToast('Atenção: prazo passou', 'warning');
+
+   Tipos: 'success' | 'error' | 'warning' | 'info' (default)
+   Duração padrão: 5s. Passe 0 pra não auto-fechar.
+   ============================================================== */
+function showToast(message, type = 'info', duration = 5000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  // Ícones SVG embutidos por tipo (pra não depender de lib externa)
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type] || icons.info}</div>
+    <div class="toast-message">${escapeHTML(message)}</div>
+    <button class="toast-close" aria-label="Fechar notificação">×</button>
+  `;
+  container.appendChild(toast);
+
+  const close = () => {
+    if (!toast.parentNode) return;
+    toast.classList.add('toast-leaving');
+    setTimeout(() => toast.remove(), 300);
+  };
+
+  toast.querySelector('.toast-close').addEventListener('click', close);
+  if (duration > 0) setTimeout(close, duration);
 }
 
 /* ==============================================================
@@ -2858,17 +2996,17 @@ function getSortComparator() {
  */
 async function postergarDemanda(row, dias, btnEl) {
   if (!WEB_APP_URL || !WEB_APP_TOKEN) {
-    alert('Recurso de postergar ainda não foi configurado.');
+    showToast('Recurso de postergar não configurado.', 'warning');
     return;
   }
   if (!Number.isFinite(dias) || dias <= 0 || dias > 365) {
-    alert('Quantidade de dias inválida (use entre 1 e 365).');
+    showToast('Quantidade de dias inválida (use entre 1 e 365).', 'warning');
     return;
   }
 
   const threadId = extractThreadId(row.Link_Email);
   if (!threadId) {
-    alert('Não foi possível identificar esta demanda (link inválido na planilha).');
+    showToast('Não foi possível identificar esta demanda (link inválido na planilha).', 'error');
     return;
   }
 
@@ -2889,7 +3027,7 @@ async function postergarDemanda(row, dias, btnEl) {
 
     const data = await res.json();
     if (!data.ok) {
-      alert('Erro ao postergar: ' + (data.erro || 'desconhecido'));
+      showToast('Erro ao postergar: ' + (data.erro || 'desconhecido'), 'error');
       botoes.forEach(b => b.disabled = false);
       return;
     }
@@ -2897,6 +3035,7 @@ async function postergarDemanda(row, dias, btnEl) {
     // Aplica o novo prazo localmente (não espera o cache do CSV)
     row.Prazo = data.novoPrazo;
     renderAll();
+    showToast('Prazo adiado para ' + data.novoPrazo, 'success');
 
     // Re-renderiza o drawer com o novo prazo (mantém aberto para o usuário ver)
     if (currentDrawerRow === row) {
@@ -2907,7 +3046,7 @@ async function postergarDemanda(row, dias, btnEl) {
 
   } catch (err) {
     console.error('Falha na chamada ao Web App:', err);
-    alert('Falha de rede ao postergar. Tente novamente em alguns segundos.');
+    showToast('Falha de rede ao postergar. Tente novamente em alguns segundos.', 'error');
     botoes.forEach(b => b.disabled = false);
   }
 }
@@ -2937,13 +3076,13 @@ const FIELD_BACKEND_MAP = {
 
 async function updateCampo(row, fieldRow, value) {
   if (!WEB_APP_URL || !WEB_APP_TOKEN) {
-    alert('Recurso de edição não configurado. Verifique WEB_APP_URL e WEB_APP_TOKEN no código.');
+    showToast('Recurso de edição não configurado. Verifique WEB_APP_URL e WEB_APP_TOKEN no código.', 'warning');
     return false;
   }
 
   const threadId = extractThreadId(row.Link_Email);
   if (!threadId) {
-    alert('Não foi possível identificar esta demanda (link inválido na planilha).');
+    showToast('Não foi possível identificar esta demanda (link inválido na planilha).', 'error');
     return false;
   }
 
@@ -2963,7 +3102,7 @@ async function updateCampo(row, fieldRow, value) {
     });
     const data = await res.json();
     if (!data.ok) {
-      alert('Erro ao salvar: ' + (data.erro || 'desconhecido'));
+      showToast('Erro ao salvar: ' + (data.erro || 'desconhecido'), 'error');
       return false;
     }
     // Atualiza o row localmente com o valor confirmado pelo servidor
@@ -2971,10 +3110,11 @@ async function updateCampo(row, fieldRow, value) {
     // independente do formato de entrada)
     row[fieldRow] = data.value;
     renderAll();
+    showToast(fieldRow + ' atualizado: ' + data.value, 'success', 3000);
     return true;
   } catch (err) {
     console.error('Falha de rede em updateCampo:', err);
-    alert('Falha de rede ao salvar. Tente novamente em alguns segundos.');
+    showToast('Falha de rede ao salvar. Tente novamente em alguns segundos.', 'error');
     return false;
   }
 }
