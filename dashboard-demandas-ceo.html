@@ -1473,6 +1473,14 @@ tbody tr.empty-row { cursor: default; }
       <label for="filterStatus">Status</label>
       <select id="filterStatus"><option value="">Todos os Status</option></select>
     </div>
+    <div class="filter-group">
+      <label for="filterTipo">Tipo</label>
+      <select id="filterTipo"><option value="">Todos os Tipos</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="filterProjeto">Projeto</label>
+      <select id="filterProjeto"><option value="">Todos os Projetos</option></select>
+    </div>
     <button class="btn btn-clear" id="clearFiltersBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"/>
@@ -1652,6 +1660,32 @@ tbody tr.empty-row { cursor: default; }
               <option value="Média">Média</option>
               <option value="Baixa">Baixa</option>
             </select>
+          </div>
+
+          <!-- Tipo (editável — categoria geral da demanda) -->
+          <div class="drawer-card editable" id="drawerTipoCard">
+            <div class="drawer-card-label">Tipo</div>
+            <div class="drawer-card-value" id="drawerTipoDisplay">—</div>
+            <select class="drawer-card-edit" id="drawerTipoEdit">
+              <option value="">— Sem tipo —</option>
+              <option value="Projeto">Projeto</option>
+              <option value="Aprovação">Aprovação</option>
+              <option value="Decisão">Decisão</option>
+              <option value="Melhoria">Melhoria</option>
+              <option value="Informativo">Informativo</option>
+              <option value="Operacional">Operacional</option>
+            </select>
+          </div>
+
+          <!-- Projeto (editável — texto livre com sugestões dos projetos existentes) -->
+          <div class="drawer-card editable" id="drawerProjetoCard">
+            <div class="drawer-card-label">Projeto</div>
+            <div class="drawer-card-value" id="drawerProjetoDisplay">—</div>
+            <input type="text" class="drawer-card-edit" id="drawerProjetoEdit"
+                   list="projetosDataList" maxlength="100"
+                   placeholder="Nome do projeto (opcional)">
+            <!-- datalist dinâmico: populado em tempo de execução com projetos da planilha -->
+            <datalist id="projetosDataList"></datalist>
           </div>
 
           <!-- Responsável (editável) -->
@@ -2280,10 +2314,12 @@ function getThreadActivity(row) {
 function saveFilters() {
   try {
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
-      area: document.getElementById('filterArea').value,
-      resp: document.getElementById('filterResp').value,
-      status: document.getElementById('filterStatus').value,
-      search: document.getElementById('searchInput').value,
+      area:    document.getElementById('filterArea').value,
+      resp:    document.getElementById('filterResp').value,
+      status:  document.getElementById('filterStatus').value,
+      tipo:    document.getElementById('filterTipo').value,
+      projeto: document.getElementById('filterProjeto').value,
+      search:  document.getElementById('searchInput').value,
       showOnlyLate: showOnlyLate
     }));
   } catch (e) { /* localStorage indisponível */ }
@@ -2301,9 +2337,11 @@ function loadFiltersFromStorage() {
       if (sel && [...sel.options].some(o => o.value === valor)) sel.value = valor;
     };
 
-    setSeExiste('filterArea',   state.area   || '');
-    setSeExiste('filterResp',   state.resp   || '');
-    setSeExiste('filterStatus', state.status || '');
+    setSeExiste('filterArea',    state.area    || '');
+    setSeExiste('filterResp',    state.resp    || '');
+    setSeExiste('filterStatus',  state.status  || '');
+    setSeExiste('filterTipo',    state.tipo    || '');
+    setSeExiste('filterProjeto', state.projeto || '');
     document.getElementById('searchInput').value = state.search || '';
     showOnlyLate = !!state.showOnlyLate;
   } catch (e) { /* sem filtros salvos */ }
@@ -2439,7 +2477,9 @@ const FIELD_ALIASES = {
   Status:        ['status', 'situacao', 'estado'],
   Prazo:         ['prazo', 'data_prazo', 'vencimento', 'data_de_vencimento', 'deadline'],
   Resumo:        ['resumo', 'resumo_executivo', 'resumo_ia', 'sumario', 'summary'],
-  Contagem:      ['contagem', 'qtd_msgs', 'qtde_mensagens', 'mensagens', 'count']
+  Contagem:      ['contagem', 'qtd_msgs', 'qtde_mensagens', 'mensagens', 'count'],
+  Tipo:          ['tipo', 'categoria', 'classificacao', 'type'],
+  Projeto:       ['projeto', 'project', 'iniciativa']
 };
 
 // Converte uma linha bruta do CSV em uma linha com as chaves canônicas que o resto do código espera
@@ -2484,11 +2524,31 @@ function afterLoad() {
    FILTROS DINÂMICOS - populados a partir dos dados reais
    ============================================================== */
 function populateFilters() {
-  populateSelect('filterArea', allData.map(r => r.Area).filter(Boolean));
-  populateSelect('filterResp', allData.map(r => r.Responsavel).filter(Boolean));
-  populateSelect('filterStatus', allData.map(r => r.Status).filter(Boolean));
+  populateSelect('filterArea',    allData.map(r => r.Area).filter(Boolean));
+  populateSelect('filterResp',    allData.map(r => r.Responsavel).filter(Boolean));
+  populateSelect('filterStatus',  allData.map(r => r.Status).filter(Boolean));
+  populateSelect('filterTipo',    allData.map(r => r.Tipo).filter(Boolean));
+  populateSelect('filterProjeto', allData.map(r => r.Projeto).filter(Boolean));
+
+  // Popula o datalist do drawer (sugestões de projetos quando o usuário
+  // for editar o campo Projeto numa demanda). Usa os mesmos projetos únicos.
+  popularProjetosDataList();
+
   // Restaura filtros salvos da última visita (se ainda existirem nas opções)
   loadFiltersFromStorage();
+}
+
+/**
+ * Atualiza o <datalist> usado pelo input de Projeto no drawer.
+ * Lista única de todos os projetos já cadastrados em qualquer demanda.
+ * Roda toda vez que populateFilters roda (ou seja, a cada loadData).
+ */
+function popularProjetosDataList() {
+  const datalist = document.getElementById('projetosDataList');
+  if (!datalist) return;
+  const projetos = [...new Set(allData.map(r => (r.Projeto || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  datalist.innerHTML = projetos.map(p => `<option value="${escapeHTML(p)}"></option>`).join('');
 }
 
 function populateSelect(id, values) {
@@ -2510,6 +2570,8 @@ function applyFilters() {
   const area = document.getElementById('filterArea').value;
   const resp = document.getElementById('filterResp').value;
   const status = document.getElementById('filterStatus').value;
+  const tipo = document.getElementById('filterTipo').value;
+  const projeto = document.getElementById('filterProjeto').value;
   const search = document.getElementById('searchInput').value.toLowerCase().trim();
 
   filteredData = allData.filter(r => {
@@ -2517,11 +2579,13 @@ function applyFilters() {
     if (area && r.Area !== area) return false;
     if (resp && r.Responsavel !== resp) return false;
     if (status && r.Status !== status) return false;
+    if (tipo && r.Tipo !== tipo) return false;
+    if (projeto && r.Projeto !== projeto) return false;
     if (search) {
       const haystack = [
         getTitle(r), r.Assunto_Email, r.Nome_Acao,
         r.Area, r.Responsavel, r.Status, r.Resumo,
-        r.Prioridade, r.Remetente
+        r.Prioridade, r.Remetente, r.Tipo, r.Projeto
       ].join(' ').toLowerCase();
       if (!haystack.includes(search)) return false;
     }
@@ -3071,7 +3135,9 @@ const FIELD_BACKEND_MAP = {
   Prioridade:  'Prioridade',
   Responsavel: 'Responsavel',
   Area:        'Area',
-  Prazo:       'Prazo'
+  Prazo:       'Prazo',
+  Tipo:        'Tipo',
+  Projeto:     'Projeto'
 };
 
 async function updateCampo(row, fieldRow, value) {
@@ -3141,6 +3207,8 @@ function setupInlineEdit() {
   const campos = [
     { card: 'drawerStatusCard',      display: 'drawerStatusDisplay',      edit: 'drawerStatusEdit',      field: 'Status' },
     { card: 'drawerPrioridadeCard',  display: 'drawerPrioridadeDisplay',  edit: 'drawerPrioridadeEdit',  field: 'Prioridade' },
+    { card: 'drawerTipoCard',        display: 'drawerTipoDisplay',        edit: 'drawerTipoEdit',        field: 'Tipo' },
+    { card: 'drawerProjetoCard',     display: 'drawerProjetoDisplay',     edit: 'drawerProjetoEdit',     field: 'Projeto' },
     { card: 'drawerRespCard',        display: 'drawerResp',               edit: 'drawerRespEdit',        field: 'Responsavel' },
     { card: 'drawerAreaCard',        display: 'drawerArea',               edit: 'drawerAreaEdit',        field: 'Area' },
     { card: 'drawerPrazoCard',       display: 'drawerPrazo',              edit: 'drawerPrazoEdit',       field: 'Prazo' }
@@ -3193,8 +3261,17 @@ function setupInlineEdit() {
         mesmoValor = (novoValor.toLowerCase() === valorAntigo.toLowerCase());
       }
 
-      if (!novoValor || mesmoValor) {
-        // Cancela edição sem chamar API
+      if (mesmoValor) {
+        // Não mudou nada — cancela edição sem chamar API
+        cardEl.classList.remove('editing');
+        return;
+      }
+
+      // Valor vazio: só permitido em Tipo e Projeto (significa limpar o campo).
+      // Pros outros campos (Status, Prioridade, Responsável, Área, Prazo),
+      // valor vazio é tratado como cancelamento.
+      const camposQueAceitamVazio = ['Tipo', 'Projeto'];
+      if (!novoValor && !camposQueAceitamVazio.includes(field)) {
         cardEl.classList.remove('editing');
         return;
       }
@@ -3321,6 +3398,28 @@ function openDrawer(row) {
   const prioOpcao = [...prioEdit.options].find(o => o.value.toLowerCase() === prioAtual.toLowerCase());
   prioEdit.value = (prioOpcao || prioEdit.options[1]).value; // default = "Média"
 
+  // Tipo (display + select com opção vazia)
+  const tipoDisplay = document.getElementById('drawerTipoDisplay');
+  const tipoEdit    = document.getElementById('drawerTipoEdit');
+  const tipoAtual   = (row.Tipo || '').trim();
+  if (tipoAtual) {
+    // Mostra como badge cinza pra ficar visual mas neutro (não tem cor por tipo ainda)
+    tipoDisplay.innerHTML = `<span class="badge badge-gray">${escapeHTML(tipoAtual)}</span>`;
+  } else {
+    tipoDisplay.innerHTML = '<span style="color:var(--gray-400)">— Sem tipo —</span>';
+  }
+  const tipoOpcao = [...tipoEdit.options].find(o => o.value.toLowerCase() === tipoAtual.toLowerCase());
+  tipoEdit.value = tipoOpcao ? tipoOpcao.value : '';
+
+  // Projeto (display + input com datalist de sugestões)
+  const projetoDisplay = document.getElementById('drawerProjetoDisplay');
+  const projetoEdit    = document.getElementById('drawerProjetoEdit');
+  const projetoAtual   = (row.Projeto || '').trim();
+  projetoDisplay.textContent = projetoAtual || '— Sem projeto —';
+  if (!projetoAtual) projetoDisplay.style.color = 'var(--gray-400)';
+  else projetoDisplay.style.color = '';
+  projetoEdit.value = projetoAtual;
+
   // Responsável (display + input)
   document.getElementById('drawerResp').textContent = row.Responsavel || '—';
   document.getElementById('drawerRespEdit').value = row.Responsavel || '';
@@ -3430,7 +3529,7 @@ function setupEvents() {
   document.getElementById('refreshBtn').addEventListener('click', loadData);
 
   // Filtros
-  ['filterArea', 'filterResp', 'filterStatus'].forEach(id =>
+  ['filterArea', 'filterResp', 'filterStatus', 'filterTipo', 'filterProjeto'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyFilters)
   );
 
@@ -3439,10 +3538,12 @@ function setupEvents() {
 
   // Limpar filtros
   document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-    document.getElementById('filterArea').value = '';
-    document.getElementById('filterResp').value = '';
-    document.getElementById('filterStatus').value = '';
-    document.getElementById('searchInput').value = '';
+    document.getElementById('filterArea').value    = '';
+    document.getElementById('filterResp').value    = '';
+    document.getElementById('filterStatus').value  = '';
+    document.getElementById('filterTipo').value    = '';
+    document.getElementById('filterProjeto').value = '';
+    document.getElementById('searchInput').value   = '';
     showOnlyLate = false;       // o "Limpar" geral também desliga o filtro de atrasadas
     applyFilters();
   });
