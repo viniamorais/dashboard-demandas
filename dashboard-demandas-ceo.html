@@ -1717,10 +1717,22 @@ function getDisplayStatus(row) {
 function statusBadgeClass(status) {
   if (!status) return 'badge-gray';
   const s = status.toLowerCase();
-  if (s.includes('conclu') || s.includes('feito') || s.includes('finaliz')) return 'badge-success';
+
+  // Verde: terminou
+  if (s.includes('conclu') || s.includes('finaliz') || s.includes('feito')) return 'badge-success';
+
+  // Azul: ativamente em movimento
   if (s.includes('andamento') || s.includes('progresso') || s.includes('execu')) return 'badge-info';
-  if (s.includes('imped') || s.includes('bloque') || s.includes('atrasa')) return 'badge-danger';
-  if (s.includes('pend') || s.includes('aberto') || s.includes('aguard')) return 'badge-warning';
+
+  // Vermelho: travado por impedimento externo
+  if (s.includes('bloque') || s.includes('imped')) return 'badge-danger';
+
+  // Amarelo: pendente de decisão (espera ativa)
+  if (s.includes('aguard') || s.includes('aprova') || s.includes('pend') || s.includes('aberto')) return 'badge-warning';
+
+  // Cinza: deliberadamente parada (≠ bloqueada)
+  if (s.includes('paus')) return 'badge-gray';
+
   return 'badge-gray';
 }
 
