@@ -1,0 +1,3104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Executivo · Controle de Demandas</title>
+
+<!-- ============================================================
+     FONTE INTER - tipografia executiva limpa
+     ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+     BIBLIOTECAS VIA CDN
+     - Chart.js: gráficos
+     - PapaParse: leitura/parse robusto de CSV
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+/* ==============================================================
+   DESIGN SYSTEM - paleta executiva (azul marinho + cinzas)
+   ============================================================== */
+:root {
+  --navy-900: #0f2942;
+  --navy-800: #1a3556;
+  --navy-700: #1e3a5f;
+  --navy-600: #2c5282;
+  --navy-500: #3a6ea5;
+
+  --gray-50:  #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+
+  --bg: #f5f7fa;
+  --white: #ffffff;
+
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --warning: #d97706;
+  --warning-light: #fef3c7;
+  --danger:  #dc2626;
+  --danger-light: #fee2e2;
+  --info:    #2563eb;
+  --info-light: #dbeafe;
+
+  --shadow-sm: 0 1px 2px rgba(15,41,66,.05);
+  --shadow:    0 1px 3px rgba(15,41,66,.06), 0 1px 2px rgba(15,41,66,.04);
+  --shadow-md: 0 4px 12px rgba(15,41,66,.06), 0 2px 4px rgba(15,41,66,.04);
+  --shadow-lg: 0 10px 25px rgba(15,41,66,.08), 0 4px 10px rgba(15,41,66,.04);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--gray-800);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 32px 56px;
+}
+
+/* ==============================================================
+   CABEÇALHO
+   ============================================================== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-icon {
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(135deg, var(--navy-700), var(--navy-900));
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.brand-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy-900);
+  letter-spacing: -0.02em;
+}
+
+.brand-text p {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.last-update {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-right: 8px;
+  font-weight: 500;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-700);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+.btn:hover { background: var(--gray-50); border-color: var(--gray-300); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-primary { background: var(--navy-700); color: white; border-color: var(--navy-700); }
+.btn-primary:hover { background: var(--navy-800); border-color: var(--navy-800); }
+.btn svg { width: 16px; height: 16px; }
+.btn.loading svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ==============================================================
+   KPI CARDS
+   ============================================================== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-100);
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+
+/* Faixa colorida lateral */
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--navy-700);
+}
+.kpi-card.success::before { background: var(--success); }
+.kpi-card.warning::before { background: var(--warning); }
+.kpi-card.danger::before  { background: var(--danger); }
+.kpi-card.info::before    { background: var(--info); }
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.kpi-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--gray-100);
+  color: var(--navy-700);
+}
+.kpi-card.success .kpi-icon { background: var(--success-light); color: var(--success); }
+.kpi-card.warning .kpi-icon { background: var(--warning-light); color: var(--warning); }
+.kpi-card.danger  .kpi-icon { background: var(--danger-light);  color: var(--danger); }
+.kpi-card.info    .kpi-icon { background: var(--info-light);    color: var(--info); }
+
+.kpi-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--navy-900);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.kpi-meta {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ==============================================================
+   FILTROS
+   ============================================================== */
+.filters {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-100);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.filters-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--navy-900);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-bottom: 6px;
+  border-right: 1px solid var(--gray-200);
+  padding-right: 16px;
+  margin-right: 4px;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  flex: 1;
+}
+.filter-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+select {
+  padding: 9px 32px 9px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: all 0.15s;
+}
+select:hover { border-color: var(--gray-300); }
+select:focus {
+  outline: none;
+  border-color: var(--navy-500);
+  box-shadow: 0 0 0 3px rgba(58,110,165,.15);
+}
+
+.btn-clear {
+  height: 38px;
+  align-self: flex-end;
+}
+
+/* ==============================================================
+   GRÁFICOS
+   ============================================================== */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.chart-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-100);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy-900);
+  letter-spacing: -0.01em;
+}
+.card-subtitle {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 3px;
+}
+.chart-container {
+  position: relative;
+  height: 300px;
+}
+
+/* Grid secundário (próximos vencimentos + gráfico de prioridade) */
+.secondary-grid {
+  margin-bottom: 24px;
+}
+
+/* Linha de gráfico em largura inteira (usado para Volume por Área) */
+.full-row {
+  margin-bottom: 24px;
+}
+
+/* ==============================================================
+   PRÓXIMOS VENCIMENTOS
+   ============================================================== */
+.upcoming-list { list-style: none; }
+.upcoming-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+.upcoming-item:last-child { border-bottom: none; }
+
+.upcoming-date {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.upcoming-date.urgent { background: var(--danger-light); border-color: #fecaca; }
+.upcoming-date.soon   { background: var(--warning-light); border-color: #fde68a; }
+
+.upcoming-day {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--navy-900);
+  line-height: 1;
+}
+.upcoming-date.urgent .upcoming-day { color: var(--danger); }
+.upcoming-date.soon   .upcoming-day { color: var(--warning); }
+
+.upcoming-month {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  margin-top: 3px;
+  letter-spacing: 0.05em;
+}
+
+.upcoming-info { flex: 1; min-width: 0; }
+.upcoming-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.upcoming-meta {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.upcoming-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--gray-100);
+  color: var(--gray-600);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.upcoming-tag.urgent { background: var(--danger-light); color: var(--danger); }
+.upcoming-tag.soon   { background: var(--warning-light); color: var(--warning); }
+
+/* ==============================================================
+   TABELA
+   ============================================================== */
+.table-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-100);
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--gray-100);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.search-box { position: relative; }
+.search-box input {
+  padding: 9px 12px 9px 34px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  width: 260px;
+  transition: all 0.15s;
+}
+.search-box input:focus {
+  outline: none;
+  border-color: var(--navy-500);
+  box-shadow: 0 0 0 3px rgba(58,110,165,.15);
+}
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: var(--gray-400);
+}
+
+.table-wrapper { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead { background: var(--gray-50); }
+
+th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-600);
+  border-bottom: 1px solid var(--gray-200);
+  white-space: nowrap;
+  user-select: none;
+}
+th.sortable { cursor: pointer; transition: background 0.15s; }
+th.sortable:hover { background: var(--gray-100); color: var(--navy-700); }
+th .sort-indicator {
+  display: inline-block;
+  margin-left: 4px;
+  opacity: 0.35;
+  font-size: 10px;
+  transition: opacity 0.15s;
+}
+th.sort-asc .sort-indicator,
+th.sort-desc .sort-indicator { opacity: 1; color: var(--navy-700); }
+
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-700);
+  vertical-align: middle;
+}
+tbody tr { transition: background 0.1s; }
+tbody tr:hover { background: var(--gray-50); }
+
+.cell-title {
+  font-weight: 600;
+  color: var(--gray-900);
+  max-width: 320px;
+}
+.cell-subtitle {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-success { background: var(--success-light); color: var(--success); }
+.badge-warning { background: var(--warning-light); color: #b45309; }
+.badge-danger  { background: var(--danger-light);  color: var(--danger); }
+.badge-info    { background: var(--info-light);    color: var(--info); }
+.badge-gray    { background: var(--gray-100);      color: var(--gray-600); }
+
+/* Linha inteira destacada quando atrasada */
+tr.row-late { background: rgba(220,38,38,0.025); }
+tr.row-late:hover { background: rgba(220,38,38,0.05); }
+
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.priority-pill::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 2px;
+}
+.priority-high   { color: var(--danger); }
+.priority-high::before   { background: var(--danger); }
+.priority-medium { color: var(--warning); }
+.priority-medium::before { background: var(--warning); }
+.priority-low    { color: var(--gray-500); }
+.priority-low::before    { background: var(--gray-400); }
+
+.email-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--info-light);
+  color: var(--info);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.email-link:hover { background: var(--info); color: white; }
+.email-link.disabled { background: var(--gray-100); color: var(--gray-400); pointer-events: none; }
+.email-link svg { width: 16px; height: 16px; }
+
+/* Container que agrupa os botões da última coluna (Ver E-mail + Finalizar) */
+.row-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* Botão Finalizar — verde, com ícone + texto pra deixar a ação clara */
+.finalize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.finalize-btn:hover { background: var(--success); color: white; }
+.finalize-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+  pointer-events: none;
+}
+.finalize-btn svg { width: 13px; height: 13px; }
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--gray-500);
+}
+.empty-state svg { width: 48px; height: 48px; color: var(--gray-300); margin-bottom: 12px; }
+.empty-state h3 { font-size: 16px; color: var(--gray-700); margin-bottom: 6px; font-weight: 700; }
+
+/* ==============================================================
+   ESTADOS DE LOADING / ERRO
+   ============================================================== */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(245,247,250,.85);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.spinner {
+  width: 48px; height: 48px;
+  border: 4px solid var(--gray-200);
+  border-top-color: var(--navy-700);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.banner {
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.banner svg { flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px; }
+.banner-warning { background: var(--warning-light); color: #92400e; border: 1px solid #fde68a; }
+.banner-danger  { background: var(--danger-light);  color: var(--danger);  border: 1px solid #fecaca; }
+
+/* ==============================================================
+   BANNER DE ALERTA DE ATRASADAS
+   Aparece só quando há demandas com prazo vencido em aberto.
+   ============================================================== */
+.alert-late {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fecaca;
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 16px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+  animation: slide-down 0.3s ease;
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.alert-late-icon {
+  flex-shrink: 0;
+  width: 42px; height: 42px;
+  background: var(--danger);
+  color: white;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+.alert-late-text { flex: 1; }
+.alert-late-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #991b1b;
+  letter-spacing: -0.01em;
+}
+.alert-late-sub {
+  font-size: 12.5px;
+  color: #b91c1c;
+  margin-top: 2px;
+  font-weight: 500;
+}
+.alert-late-action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  background: var(--danger);
+  color: white;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+.alert-late-action:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+}
+.alert-late-action svg { width: 16px; height: 16px; }
+.alert-late.filter-active {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border-color: #fed7aa;
+  border-left-color: var(--warning);
+}
+.alert-late.filter-active .alert-late-icon { background: var(--warning); box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25); }
+.alert-late.filter-active .alert-late-title { color: #9a3412; }
+.alert-late.filter-active .alert-late-sub   { color: #c2410c; }
+.alert-late.filter-active .alert-late-action {
+  background: var(--gray-700);
+  box-shadow: 0 2px 8px rgba(51, 65, 85, 0.25);
+}
+.alert-late.filter-active .alert-late-action:hover { background: var(--gray-800); }
+
+/* ==============================================================
+   DRAWER DE DETALHES (painel lateral)
+   Abre ao clicar em uma linha da tabela.
+   ============================================================== */
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  visibility: hidden;
+  transition: visibility 0s linear 0.3s;
+}
+.drawer.open {
+  pointer-events: auto;
+  visibility: visible;
+  transition: visibility 0s;
+}
+
+.drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 41, 66, 0.4);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.drawer.open .drawer-backdrop { opacity: 1; }
+
+.drawer-panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: min(540px, 92vw);
+  background: var(--white);
+  box-shadow: -10px 0 40px rgba(15, 41, 66, 0.15);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+.drawer.open .drawer-panel { transform: translateX(0); }
+
+.drawer-header {
+  padding: 26px 32px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.drawer-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--gray-500);
+  transition: all 0.15s;
+}
+.drawer-close:hover { background: var(--gray-100); color: var(--gray-800); }
+.drawer-close svg { width: 18px; height: 18px; }
+
+.drawer-tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.drawer-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy-900);
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin-right: 32px;
+}
+
+.drawer-subtitle {
+  font-size: 13px;
+  color: var(--gray-500);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 32px;
+}
+
+.drawer-late-banner {
+  background: var(--danger-light);
+  color: var(--danger);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid var(--danger);
+}
+
+.drawer-section { margin-bottom: 22px; }
+.drawer-section:last-child { margin-bottom: 0; }
+
+.drawer-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+}
+
+.drawer-summary {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--gray-800);
+  background: var(--gray-50);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  border-left: 3px solid var(--navy-700);
+}
+.drawer-summary.placeholder {
+  color: var(--gray-500);
+  font-style: italic;
+  border-left-color: var(--gray-300);
+}
+
+.drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.drawer-card {
+  background: var(--gray-50);
+  border-radius: var(--radius-sm);
+  padding: 13px 15px;
+  border: 1px solid var(--gray-100);
+}
+
+.drawer-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gray-500);
+  margin-bottom: 6px;
+}
+
+.drawer-card-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+  line-height: 1.3;
+}
+
+.drawer-card-sub {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.drawer-card.danger .drawer-card-value { color: var(--danger); }
+.drawer-card.danger .drawer-card-sub   { color: var(--danger); }
+
+.drawer-actions {
+  padding: 16px 32px;
+  border-top: 1px solid var(--gray-100);
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--white);
+}
+
+.drawer-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.drawer-btn svg { width: 16px; height: 16px; }
+
+.drawer-btn-secondary {
+  background: var(--info-light);
+  color: var(--info);
+}
+.drawer-btn-secondary:hover { background: var(--info); color: white; }
+
+.drawer-btn-primary {
+  background: var(--success);
+  color: white;
+}
+.drawer-btn-primary:hover { background: #15803d; }
+.drawer-btn-primary:disabled,
+.drawer-btn-primary.completed {
+  background: var(--gray-200);
+  color: var(--gray-500);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Linhas da tabela viram clicáveis quando o drawer está disponível */
+tbody tr { cursor: pointer; }
+tbody tr.empty-row { cursor: default; }
+
+/* ==============================================================
+   INDICADOR "NOVA DESDE ÚLTIMA VISITA"
+   Pingo azul ao lado do título da demanda nova.
+   ============================================================== */
+.new-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--info);
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  animation: pulse-new 2.4s ease-in-out infinite;
+}
+@keyframes pulse-new {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18); }
+  50%      { box-shadow: 0 0 0 7px rgba(37, 99, 235, 0.04); }
+}
+
+/* ==============================================================
+   INDICADOR DE ATUALIZAÇÃO (novas mensagens na thread)
+   Badge laranja na linha + banner dentro do drawer.
+   ============================================================== */
+.update-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px 2px 6px;
+  background: var(--warning-light);
+  color: #b45309;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 8px;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.08);
+}
+.update-indicator svg {
+  width: 10px;
+  height: 10px;
+}
+
+.drawer-update-banner {
+  background: #fff7ed;
+  color: #9a3412;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid var(--warning);
+}
+.drawer-update-banner svg { flex-shrink: 0; }
+
+/* ==============================================================
+   POPOVER DE POSTERGAR PRAZO (dentro do drawer)
+   ============================================================== */
+.drawer-postpone {
+  border-top: 1px solid var(--gray-100);
+  background: var(--gray-50);
+  padding: 16px 32px;
+  display: none;
+  animation: slide-down 0.2s ease;
+}
+.drawer-postpone.open { display: block; }
+
+.drawer-postpone-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gray-600);
+  margin-bottom: 10px;
+}
+
+.drawer-postpone-quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.postpone-quick-btn {
+  padding: 10px 8px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.postpone-quick-btn:hover {
+  background: var(--navy-700);
+  color: white;
+  border-color: var(--navy-700);
+  transform: translateY(-1px);
+}
+.postpone-quick-btn:disabled { opacity: 0.5; cursor: wait; }
+
+.drawer-postpone-custom {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.drawer-postpone-custom input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--white);
+}
+.drawer-postpone-custom input:focus {
+  outline: none;
+  border-color: var(--navy-500);
+  box-shadow: 0 0 0 3px rgba(58, 110, 165, 0.15);
+}
+.drawer-postpone-custom button {
+  padding: 9px 14px;
+  background: var(--navy-700);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.drawer-postpone-custom button:hover { background: var(--navy-800); }
+.drawer-postpone-custom button:disabled { opacity: 0.5; cursor: wait; }
+
+/* Variante terciária do botão (Adiar): cinza, neutro */
+.drawer-btn-tertiary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+.drawer-btn-tertiary:hover { background: var(--gray-200); color: var(--gray-900); }
+.drawer-btn-tertiary.active {
+  background: var(--navy-700);
+  color: white;
+}
+
+/* ==============================================================
+   RESPONSIVO
+   ============================================================== */
+@media (max-width: 1024px) {
+  .charts-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .container { padding: 16px; }
+  .header { flex-direction: column; align-items: flex-start; }
+  .kpi-value { font-size: 26px; }
+  .filter-group { min-width: 140px; }
+  .filters-title { border-right: none; padding-right: 0; }
+  .search-box input { width: 100%; }
+  .drawer-panel { width: 100vw; }
+  .drawer-header { padding: 20px 22px 16px; }
+  .drawer-content { padding: 18px 22px; }
+  .drawer-actions { padding: 14px 22px; }
+  .drawer-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============================================================
+       CABEÇALHO
+       ============================================================ -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 4 4 5-5"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Painel Executivo de Demandas</h1>
+        <p>Controle Estratégico · CEO</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="last-update" id="lastUpdate">Aguardando carga...</span>
+      <button class="btn btn-primary" id="refreshBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+          <path d="M3 21v-5h5"/>
+        </svg>
+        Atualizar Dados
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner para mensagens / avisos -->
+  <div id="banner" style="display:none"></div>
+
+  <!-- ============================================================
+       BANNER DE ALERTA DE ATRASADAS
+       Aparece apenas quando há demandas com prazo vencido em aberto.
+       Botão filtra a tabela para mostrar só as atrasadas.
+       ============================================================ -->
+  <div id="alertLate" class="alert-late" style="display:none">
+    <div class="alert-late-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <div class="alert-late-text">
+      <div class="alert-late-title" id="alertLateTitle">Demandas atrasadas precisam de ação</div>
+      <div class="alert-late-sub" id="alertLateSub">Cobre uma resposta dos responsáveis para destravar.</div>
+    </div>
+    <button class="alert-late-action" id="alertLateBtn">
+      <span id="alertLateBtnText">Ver atrasadas</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ============================================================
+       CARDS DE KPI
+       ============================================================ -->
+  <section class="kpi-grid">
+    <div class="kpi-card info">
+      <div class="kpi-header">
+        <span class="kpi-label">Total de Demandas</span>
+        <div class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M9 9h6M9 13h6M9 17h4"/>
+          </svg>
+        </div>
+      </div>
+      <div class="kpi-value" id="kpiTotal">0</div>
+      <div class="kpi-meta">Volume registrado</div>
+    </div>
+
+    <div class="kpi-card success">
+      <div class="kpi-header">
+        <span class="kpi-label">Concluídas</span>
+        <div class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+      </div>
+      <div class="kpi-value" id="kpiConcluidas">0</div>
+      <div class="kpi-meta" id="kpiEficiencia">Eficiência: 0%</div>
+    </div>
+
+    <div class="kpi-card warning">
+      <div class="kpi-header">
+        <span class="kpi-label">Pendentes</span>
+        <div class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+      </div>
+      <div class="kpi-value" id="kpiPendentes">0</div>
+      <div class="kpi-meta">Em aberto / em andamento</div>
+    </div>
+
+    <div class="kpi-card danger">
+      <div class="kpi-header">
+        <span class="kpi-label">Atrasadas</span>
+        <div class="kpi-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+      </div>
+      <div class="kpi-value" id="kpiAtrasadas">0</div>
+      <div class="kpi-meta">Prazo vencido & em aberto</div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FILTROS
+       ============================================================ -->
+  <section class="filters">
+    <div class="filters-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+      </svg>
+      Filtros
+    </div>
+    <div class="filter-group">
+      <label for="filterArea">Área / Diretor</label>
+      <select id="filterArea"><option value="">Todas as Áreas</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="filterResp">Responsável</label>
+      <select id="filterResp"><option value="">Todos os Responsáveis</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="filterStatus">Status</label>
+      <select id="filterStatus"><option value="">Todos os Status</option></select>
+    </div>
+    <button class="btn btn-clear" id="clearFiltersBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      Limpar
+    </button>
+  </section>
+
+  <!-- ============================================================
+       LINHA 1 DE GRÁFICOS - rosca (Status) + barras (Prioridade)
+       ============================================================ -->
+  <section class="charts-grid">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Distribuição por Status</div>
+          <div class="card-subtitle">Visão geral das demandas</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="chartStatus"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Demandas por Prioridade</div>
+          <div class="card-subtitle">Distribuição estratégica</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="chartPriority"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       LINHA 2 - Volume por Área (largura inteira para acomodar todas as áreas)
+       ============================================================ -->
+  <section class="full-row">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Volume por Área / Diretor</div>
+          <div class="card-subtitle">Demandas por unidade</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="chartArea"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       LINHA 3 - Próximos Vencimentos (largura inteira)
+       ============================================================ -->
+  <section class="secondary-grid">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Próximos Vencimentos</div>
+          <div class="card-subtitle">Top 5 prazos mais próximos</div>
+        </div>
+      </div>
+      <ul class="upcoming-list" id="upcomingList"></ul>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       TABELA GERAL
+       ============================================================ -->
+  <section class="table-card">
+    <div class="table-header">
+      <div>
+        <div class="card-title">Tabela Geral de Demandas</div>
+        <div class="card-subtitle">Clique nos cabeçalhos para ordenar</div>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Buscar por título, responsável, status...">
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="titulo">Demanda <span class="sort-indicator">▲▼</span></th>
+            <th class="sortable" data-sort="Area">Área <span class="sort-indicator">▲▼</span></th>
+            <th class="sortable" data-sort="Responsavel">Responsável <span class="sort-indicator">▲▼</span></th>
+            <th class="sortable" data-sort="Prioridade">Prioridade <span class="sort-indicator">▲▼</span></th>
+            <th class="sortable" data-sort="Status">Status <span class="sort-indicator">▲▼</span></th>
+            <th class="sortable" data-sort="Data_Entrada">Entrada <span class="sort-indicator">▲▼</span></th>
+            <th class="sortable sort-asc" data-sort="Prazo">Prazo <span class="sort-indicator">▲</span></th>
+            <th>E-mail</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============================================================
+     DRAWER DE DETALHES DA DEMANDA (painel lateral deslizante)
+     Abre ao clicar em uma linha da tabela.
+     ============================================================ -->
+<aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="drawerTitle">
+  <div class="drawer-backdrop" data-drawer-close></div>
+  <div class="drawer-panel">
+
+    <header class="drawer-header">
+      <button class="drawer-close" data-drawer-close aria-label="Fechar painel de detalhes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <div class="drawer-tags" id="drawerTags"></div>
+      <h2 class="drawer-title" id="drawerTitle"></h2>
+      <p class="drawer-subtitle" id="drawerSubtitle" style="display:none"></p>
+    </header>
+
+    <div class="drawer-content">
+      <div class="drawer-update-banner" id="drawerUpdate" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+          <path d="M3 21v-5h5"/>
+        </svg>
+        <span id="drawerUpdateText"></span>
+      </div>
+
+      <div class="drawer-late-banner" id="drawerLate" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span id="drawerLateText"></span>
+      </div>
+
+      <section class="drawer-section">
+        <div class="drawer-section-label">Resumo executivo</div>
+        <p class="drawer-summary" id="drawerSummary"></p>
+      </section>
+
+      <section class="drawer-section">
+        <div class="drawer-section-label">Detalhes da demanda</div>
+        <div class="drawer-grid">
+          <div class="drawer-card">
+            <div class="drawer-card-label">Responsável</div>
+            <div class="drawer-card-value" id="drawerResp">—</div>
+            <div class="drawer-card-sub" id="drawerArea"></div>
+          </div>
+          <div class="drawer-card" id="drawerPrazoCard">
+            <div class="drawer-card-label">Prazo</div>
+            <div class="drawer-card-value" id="drawerPrazo">—</div>
+            <div class="drawer-card-sub" id="drawerPrazoSub"></div>
+          </div>
+          <div class="drawer-card">
+            <div class="drawer-card-label">Entrada</div>
+            <div class="drawer-card-value" id="drawerEntrada">—</div>
+            <div class="drawer-card-sub" id="drawerRemetente"></div>
+          </div>
+          <div class="drawer-card">
+            <div class="drawer-card-label">Mensagens na thread</div>
+            <div class="drawer-card-value" id="drawerContagem">—</div>
+            <div class="drawer-card-sub">e-mails trocados</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Painel de "Adiar prazo" — fica oculto e abre quando clica em Adiar -->
+    <div class="drawer-postpone" id="drawerPostpone">
+      <div class="drawer-postpone-label">Adiar prazo em…</div>
+      <div class="drawer-postpone-quick">
+        <button class="postpone-quick-btn" data-dias="1">+1 dia</button>
+        <button class="postpone-quick-btn" data-dias="3">+3 dias</button>
+        <button class="postpone-quick-btn" data-dias="7">+1 sem</button>
+        <button class="postpone-quick-btn" data-dias="14">+2 sem</button>
+      </div>
+      <div class="drawer-postpone-custom">
+        <input type="number" id="postponeCustomInput" min="1" max="365" placeholder="Outro nº de dias">
+        <button id="postponeCustomBtn">Aplicar</button>
+      </div>
+    </div>
+
+    <footer class="drawer-actions">
+      <a class="drawer-btn drawer-btn-secondary" id="drawerEmail" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        Ver E-mail
+      </a>
+      <button class="drawer-btn drawer-btn-tertiary" id="drawerPostponeToggle" title="Adiar o prazo desta demanda">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Adiar
+      </button>
+      <button class="drawer-btn drawer-btn-primary" id="drawerFinalize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        <span id="drawerFinalizeText">Finalizar</span>
+      </button>
+    </footer>
+
+  </div>
+</aside>
+
+<!-- Overlay de carregamento -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+  <div class="spinner"></div>
+</div>
+
+<script>
+/* ==============================================================
+   ============================================================
+   ►  CONFIGURAÇÃO  ◄
+   ============================================================
+   COLE ABAIXO O LINK CSV PUBLICADO DO GOOGLE SHEETS
+
+   Como obter no Google Sheets:
+     1) Abra a planilha
+     2) Arquivo > Compartilhar > Publicar na Web
+     3) Em "Vincular", escolha a aba desejada e formato "CSV"
+     4) Clique em "Publicar" e copie o link gerado
+     5) Substitua a string abaixo
+
+   Exemplo:
+   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vXXXXX/pub?gid=0&single=true&output=csv";
+   ============================================================ */
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQcu4tIuI4Awso9nTV3cOVfIWzT5ITU158WVYjbVlGPvXptXWfj3TsuAC16k4ZzXYXUVOyoOmDuRynS/pub?gid=287335998&single=true&output=csv";
+
+/* ============================================================
+   FORÇAR CONTA GMAIL (opcional, normalmente deixe vazio)
+   ============================================================
+   Por padrão (vazio), o link "Ver E-mail" abre na conta padrão
+   do Gmail da pessoa que clicou. A busca acontece na PRÓPRIA
+   caixa de quem está clicando — então qualquer um que tenha
+   aquele e-mail (como remetente, destinatário ou em cópia, em
+   qualquer pasta: Inbox, Sent, etc.) consegue abrir.
+
+   Preencha APENAS se quiser travar todos os links em uma conta
+   específica (ex: "andre@grupomultilaser.com.br").
+   ============================================================ */
+const FORCAR_CONTA_GMAIL = "";
+/* ============================================================ */
+
+/* ============================================================
+   BOTÃO FINALIZAR (escreve de volta na planilha)
+   ============================================================
+   Para o André (ou qualquer um que abrir o dashboard) poder
+   finalizar uma demanda direto da tabela, preencha as duas
+   constantes abaixo:
+
+   1) WEB_APP_URL  → URL do Web App gerada quando você publicou
+      o Apps Script como App da Web. Termina em "/exec".
+      Veja instruções de publicação no comentário do doPost no
+      arquivo gerenciar-demandas-ceo.gs.
+
+   2) WEB_APP_TOKEN → o mesmo token que você definiu na
+      propriedade WEB_APP_TOKEN do Apps Script. Camada mínima
+      de proteção: sem ele, a requisição é recusada.
+
+   Se as duas estiverem vazias, o botão "Finalizar" simplesmente
+   não aparece na tabela (comportamento padrão).
+   ============================================================ */
+const WEB_APP_URL   = "https://script.google.com/macros/s/AKfycbxgi2Y8o5_Lvupc39B70md9J-04J9rRp6sL2tHRre6MthhYGk1UH_Q1YuAxVZ2Z43mY/exec";
+const WEB_APP_TOKEN = "9f6f9b10-06ff-4bb2-984a-fe8b45e0f8b4";
+/* ============================================================ */
+
+
+/* ==============================================================
+   ESTADO GLOBAL
+   ============================================================== */
+let allData = [];          // Todos os dados da planilha
+let filteredData = [];     // Dados após aplicação dos filtros
+let charts = {};           // Instâncias do Chart.js
+let sortState = { column: 'Prazo', direction: 'asc' };
+let showOnlyLate = false;  // Filtro especial ativado pelo banner de atrasadas
+
+/* Auto-refresh + indicador de tempo */
+const AUTO_REFRESH_MS = 5 * 60 * 1000;  // 5 minutos
+let autoRefreshTimer = null;
+let relativeTimeTimer = null;
+let lastLoadTimestamp = null;
+
+/* Tracking de "novas desde última visita" */
+let LAST_VISIT_TIMESTAMP = null;
+
+/* Tracking de "atualizações em threads existentes desde última visita"
+   Estrutura: { threadId: { contagem, ts } } */
+let LAST_THREAD_STATES = {};
+const THREAD_STATES_KEY = 'dashboardDemandasThreadStates';
+
+/* Persistência de filtros */
+const FILTER_STORAGE_KEY = 'dashboardDemandasFilters';
+
+/* ==============================================================
+   PALETA PARA GRÁFICOS (alinhada ao tema executivo)
+   ============================================================== */
+const CHART_COLORS = {
+  navy:    '#1e3a5f',
+  navyLight: '#3a6ea5',
+  success: '#16a34a',
+  warning: '#d97706',
+  danger:  '#dc2626',
+  info:    '#2563eb',
+  gray:    '#94a3b8',
+  palette: ['#1e3a5f', '#3a6ea5', '#5b8dc7', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#64748b']
+};
+
+/* ==============================================================
+   UTILIDADES
+   ============================================================== */
+
+// Parse de data tolerante: aceita DD/MM/YYYY (BR) e ISO
+function parseDate(str) {
+  if (!str || typeof str !== 'string') return null;
+  const trimmed = str.trim();
+  if (!trimmed) return null;
+  const br = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (br) {
+    let year = parseInt(br[3]);
+    if (year < 100) year += 2000;
+    const d = new Date(year, parseInt(br[2]) - 1, parseInt(br[1]));
+    return isNaN(d) ? null : d;
+  }
+  const d = new Date(trimmed);
+  return isNaN(d) ? null : d;
+}
+
+// Formata data para exibição em pt-BR
+function formatDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Título da demanda: Nome_Acao OU Assunto_Email como fallback
+function getTitle(row) {
+  const nome = (row.Nome_Acao || '').trim();
+  if (nome) return nome;
+  return (row.Assunto_Email || '').trim() || 'Sem título';
+}
+
+// Retorna o subtítulo a ser mostrado abaixo do título da demanda.
+// Prioridade: Resumo da IA > Assunto do e-mail.
+// O resumo é ignorado quando ainda é placeholder ("AGUARDANDO IA", erro, vazio).
+function getSubtitle(row) {
+  const resumo = (row.Resumo || '').trim();
+  const ehPlaceholder = !resumo
+    || /aguardando/i.test(resumo)
+    || /erro/i.test(resumo)
+    || resumo.includes('⚠️')
+    || resumo.includes('⚠');
+
+  if (!ehPlaceholder) return resumo;
+
+  // Fallback: assunto, mas só se for diferente do título (evita repetir)
+  const nome = (row.Nome_Acao || '').trim();
+  const assunto = (row.Assunto_Email || '').trim();
+  return nome && assunto && nome !== assunto ? assunto : '';
+}
+
+// Verifica se o status indica conclusão
+function isCompleted(status) {
+  if (!status) return false;
+  const s = status.toLowerCase().trim();
+  return s.includes('conclu') || s === 'feito' || s.includes('finaliz');
+}
+
+// Verifica se a demanda está atrasada
+function isLate(row) {
+  const prazo = parseDate(row.Prazo);
+  if (!prazo) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return prazo < today && !isCompleted(row.Status);
+}
+
+// Status que aparece NA TELA (derivado).
+// - Se concluído: mantém o status original
+// - Se atrasado (prazo < hoje E não concluído): mostra "Atrasado" em vermelho
+// - Caso contrário: status original da planilha
+// Importante: isso é puramente visual. Atualizar o Prazo na planilha
+// faz a demanda sair sozinha do estado "Atrasado" na próxima carga.
+function getDisplayStatus(row) {
+  if (isCompleted(row.Status)) {
+    return { label: row.Status, badgeClass: statusBadgeClass(row.Status) };
+  }
+  if (isLate(row)) {
+    return { label: 'Atrasado', badgeClass: 'badge-danger' };
+  }
+  const original = row.Status || 'Sem status';
+  return { label: original, badgeClass: statusBadgeClass(original) };
+}
+
+// Classe do badge baseado no status
+function statusBadgeClass(status) {
+  if (!status) return 'badge-gray';
+  const s = status.toLowerCase();
+  if (s.includes('conclu') || s.includes('feito') || s.includes('finaliz')) return 'badge-success';
+  if (s.includes('andamento') || s.includes('progresso') || s.includes('execu')) return 'badge-info';
+  if (s.includes('imped') || s.includes('bloque') || s.includes('atrasa')) return 'badge-danger';
+  if (s.includes('pend') || s.includes('aberto') || s.includes('aguard')) return 'badge-warning';
+  return 'badge-gray';
+}
+
+// Classe da prioridade
+function priorityClass(priority) {
+  if (!priority) return 'priority-low';
+  const p = priority.toLowerCase();
+  if (p.includes('alta') || p.includes('high') || p.includes('urgent') || p.includes('crít') || p.includes('crit')) return 'priority-high';
+  if (p.includes('méd') || p.includes('med') || p.includes('medium')) return 'priority-medium';
+  return 'priority-low';
+}
+
+// Classe de BADGE para a prioridade (cores cheias, usado nas tags do drawer)
+function priorityBadgeClass(priority) {
+  if (!priority) return 'badge-gray';
+  const p = priority.toLowerCase();
+  if (p.includes('alta') || p.includes('crít') || p.includes('crit') || p.includes('urgent')) return 'badge-danger';
+  if (p.includes('méd') || p.includes('med'))                                                 return 'badge-warning';
+  if (p.includes('baix') || p.includes('low'))                                                 return 'badge-info';
+  return 'badge-gray';
+}
+
+// Peso da prioridade para ordenação (1 = mais alta)
+function priorityWeight(priority) {
+  if (!priority) return 4;
+  const p = priority.toLowerCase();
+  if (p.includes('alta') || p.includes('crít') || p.includes('crit') || p.includes('urgent')) return 1;
+  if (p.includes('méd') || p.includes('med')) return 2;
+  if (p.includes('baix') || p.includes('low')) return 3;
+  return 4;
+}
+
+// Escape HTML para segurança ao inserir conteúdo
+function escapeHTML(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Monta o link "Ver E-mail" como uma BUSCA no Gmail (em qualquer pasta).
+ *
+ * A URL gerada não está atrelada a nenhuma caixa específica — quando alguém
+ * clica, o Gmail abre na conta padrão DELA e faz a busca lá. Isso significa
+ * que qualquer pessoa que tenha aquele e-mail (como remetente, destinatário
+ * ou em cópia) consegue abrir, em qualquer pasta da caixa dela (Inbox, Sent,
+ * Arquivados etc.) — porque a busca do Gmail varre tudo por padrão.
+ *
+ * Para precisão, somamos uma janela temporal estreita (±3 dias ao redor da
+ * Data_Entrada). Assim, mesmo assuntos repetidos ao longo do tempo não
+ * confundem o resultado.
+ *
+ * Se FORCAR_CONTA_GMAIL estiver preenchido, o link é travado naquela conta
+ * (?authuser=...). Caso contrário, abre na conta padrão de quem clicou.
+ */
+function buildEmailLink(row) {
+  const assunto = (row.Assunto_Email || '').trim();
+  if (!assunto) {
+    // Sem assunto não dá pra buscar — usa o link da planilha como fallback
+    return (row.Link_Email || '').trim();
+  }
+
+  // Aspas no assunto quebram a sintaxe da busca do Gmail; trocamos por espaço.
+  const assuntoSeguro = assunto.replace(/"/g, ' ');
+  const partes = ['subject:"' + assuntoSeguro + '"'];
+
+  // Refina por data: janela de ±3 dias ao redor da Data_Entrada
+  const dataEntrada = parseDate(row.Data_Entrada);
+  if (dataEntrada) {
+    const antes = new Date(dataEntrada);  antes.setDate(antes.getDate()  - 3);
+    const depois = new Date(dataEntrada); depois.setDate(depois.getDate() + 3);
+    partes.push('after:'  + formatGmailDate(antes));
+    partes.push('before:' + formatGmailDate(depois));
+  } else {
+    partes.push('newer_than:90d');
+  }
+
+  // Base URL: travada (com authuser) ou genérica (abre na conta padrão de quem clica)
+  const baseUrl = FORCAR_CONTA_GMAIL
+    ? 'https://mail.google.com/mail/u/?authuser=' + encodeURIComponent(FORCAR_CONTA_GMAIL)
+    : 'https://mail.google.com/mail/u/0/';
+
+  return baseUrl + '#search/' + encodeURIComponent(partes.join(' '));
+}
+
+// Formato esperado pelo Gmail nas buscas: YYYY/MM/DD
+function formatGmailDate(d) {
+  return d.getFullYear() + '/' +
+         String(d.getMonth() + 1).padStart(2, '0') + '/' +
+         String(d.getDate()).padStart(2, '0');
+}
+
+/**
+ * Extrai o threadId do link bruto que está na coluna E da planilha.
+ * Tolera os vários formatos que esse link já teve:
+ *   .../#inbox/THREAD_ID
+ *   .../#all/THREAD_ID
+ *   ?authuser=...#all/THREAD_ID
+ * Retorna "" se não conseguir identificar.
+ */
+function extractThreadId(linkBruto) {
+  if (!linkBruto) return '';
+  // O threadId é o último segmento depois de "/", limpo de hash/query
+  const ultimo = String(linkBruto).split('/').pop().split('?')[0].split('#').pop();
+  // Threads do Gmail são hexadecimais; uma validação grosseira basta
+  return /^[a-zA-Z0-9_-]+$/.test(ultimo) ? ultimo : '';
+}
+
+/**
+ * Chama o Web App do Apps Script para marcar uma demanda como Finalizada.
+ * Atualização otimista: assim que o servidor confirma sucesso, marcamos
+ * o estado local como Finalizada e re-renderizamos. O CSV publicado tem
+ * cache de alguns minutos; a UI não espera por isso.
+ */
+async function finalizarDemanda(row, btnEl) {
+  if (!WEB_APP_URL || !WEB_APP_TOKEN) {
+    alert('Recurso de finalização ainda não foi configurado. ' +
+          'Verifique as constantes WEB_APP_URL e WEB_APP_TOKEN no código.');
+    return;
+  }
+
+  const threadId = extractThreadId(row.Link_Email);
+  if (!threadId) {
+    alert('Não foi possível identificar esta demanda (link inválido na planilha).');
+    return;
+  }
+
+  const titulo = getTitle(row);
+  const ok = confirm('Marcar como Finalizada?\n\n' + titulo);
+  if (!ok) return;
+
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Finalizando...'; }
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      // Content-Type text/plain evita preflight CORS — o Apps Script Web App
+      // aceita o body bruto de qualquer jeito, e a gente parseia JSON no doPost.
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'finalize',
+        threadId: threadId,
+        token: WEB_APP_TOKEN
+      })
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      alert('Erro ao finalizar: ' + (data.erro || 'desconhecido'));
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Finalizar'; }
+      return;
+    }
+
+    // Sucesso: atualiza localmente sem esperar o cache do CSV
+    row.Status = 'Finalizada';
+    renderAll();
+    // Se o drawer estiver aberto com essa demanda, fecha (a ação foi cumprida)
+    if (currentDrawerRow === row) closeDrawer();
+
+  } catch (err) {
+    console.error('Falha na chamada ao Web App:', err);
+    alert('Falha de rede ao finalizar. Tente novamente em alguns segundos.');
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Finalizar'; }
+  }
+}
+
+// Mostra banner de aviso/erro
+function showBanner(type, message) {
+  const banner = document.getElementById('banner');
+  banner.className = `banner banner-${type}`;
+  banner.style.display = 'flex';
+  banner.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <div>${message}</div>
+  `;
+}
+
+function hideBanner() {
+  document.getElementById('banner').style.display = 'none';
+}
+
+/* ==============================================================
+   TRACKING DE "NOVA DESDE ÚLTIMA VISITA"
+   Marca demandas que entraram depois da última vez que o usuário
+   abriu o dashboard. "Visita" = primeira carga em uma sessão do
+   navegador (auto-refresh dentro da mesma sessão não conta).
+   ============================================================== */
+function initVisitTracking() {
+  // sessionStorage é zerado quando a aba é fechada — então usamos ele
+  // como marcador de "primeira carga nesta sessão"
+  const ehPrimeiraCargaDaSessao = !sessionStorage.getItem('dashboardSessionStarted');
+  if (!ehPrimeiraCargaDaSessao) return;
+
+  try {
+    const visitaAnterior = localStorage.getItem('lastDashboardVisit');
+    LAST_VISIT_TIMESTAMP = visitaAnterior ? new Date(visitaAnterior) : null;
+
+    // Promove "agora" como a próxima referência de "última visita"
+    localStorage.setItem('lastDashboardVisit', new Date().toISOString());
+    sessionStorage.setItem('dashboardSessionStarted', '1');
+  } catch (e) {
+    // localStorage pode estar desativado (ex: modo privado em alguns browsers).
+    // Sem problema, só não marcamos nada como novo nesse caso.
+    console.warn('localStorage indisponível, indicador "novo" desabilitado.');
+  }
+}
+
+function isNewSinceLastVisit(row) {
+  if (!LAST_VISIT_TIMESTAMP) return false;
+  const dataEntrada = parseDate(row.Data_Entrada);
+  if (!dataEntrada) return false;
+  return dataEntrada > LAST_VISIT_TIMESTAMP;
+}
+
+/* ==============================================================
+   TRACKING DE ATUALIZAÇÕES NA THREAD (resumo da IA mudou)
+   Compara a Contagem atual com a salva da última visita.
+   Se subiu, significa que chegou novo e-mail e o resumo refletido
+   no dashboard é mais recente do que o usuário viu da última vez.
+   ============================================================== */
+function initThreadStatesTracking() {
+  // Mesma lógica do tracking de visita: só promove na primeira carga da sessão
+  const ehPrimeiraCargaDaSessao = !sessionStorage.getItem('threadStatesPromoted');
+  if (!ehPrimeiraCargaDaSessao) return;
+
+  try {
+    const raw = localStorage.getItem(THREAD_STATES_KEY);
+    LAST_THREAD_STATES = raw ? JSON.parse(raw) : {};
+    sessionStorage.setItem('threadStatesPromoted', '1');
+  } catch (e) {
+    LAST_THREAD_STATES = {};
+  }
+}
+
+/**
+ * Salva o estado atual das threads no localStorage. Chamado uma única
+ * vez por sessão, depois que os dados foram carregados — assim a próxima
+ * sessão usa essa fotografia como referência de "última visita".
+ */
+function snapshotCurrentThreadStates() {
+  if (sessionStorage.getItem('threadStatesSnapshotted')) return;
+
+  const novoEstado = {};
+  allData.forEach(row => {
+    const threadId = extractThreadId(row.Link_Email);
+    if (!threadId) return;
+    const contagem = parseInt(row.Contagem, 10) || 0;
+    novoEstado[threadId] = { contagem: contagem, ts: new Date().toISOString() };
+  });
+
+  try {
+    localStorage.setItem(THREAD_STATES_KEY, JSON.stringify(novoEstado));
+    sessionStorage.setItem('threadStatesSnapshotted', '1');
+  } catch (e) { /* localStorage cheio ou indisponível */ }
+}
+
+/**
+ * Retorna info sobre a atividade da thread desde a última visita.
+ * - hasUpdate: true se chegaram novas mensagens
+ * - addedCount: quantas mensagens novas chegaram
+ */
+function getThreadActivity(row) {
+  const threadId = extractThreadId(row.Link_Email);
+  if (!threadId) return { hasUpdate: false, addedCount: 0 };
+
+  const contagemAtual = parseInt(row.Contagem, 10) || 0;
+  const estadoAnterior = LAST_THREAD_STATES[threadId];
+
+  // Sem registro anterior, não classifica como "atualização" (pode ser nova demanda)
+  if (!estadoAnterior) return { hasUpdate: false, addedCount: 0 };
+
+  const diff = contagemAtual - (estadoAnterior.contagem || 0);
+  return { hasUpdate: diff > 0, addedCount: diff };
+}
+
+/* ==============================================================
+   PERSISTÊNCIA DE FILTROS
+   Salva o estado dos filtros no localStorage. Da próxima vez que
+   o usuário abrir, os filtros voltam selecionados.
+   ============================================================== */
+function saveFilters() {
+  try {
+    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
+      area: document.getElementById('filterArea').value,
+      resp: document.getElementById('filterResp').value,
+      status: document.getElementById('filterStatus').value,
+      search: document.getElementById('searchInput').value,
+      showOnlyLate: showOnlyLate
+    }));
+  } catch (e) { /* localStorage indisponível */ }
+}
+
+function loadFiltersFromStorage() {
+  try {
+    const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+
+    // Aplica apenas se o valor ainda existe nas opções (caso a planilha tenha mudado)
+    const setSeExiste = (id, valor) => {
+      const sel = document.getElementById(id);
+      if (sel && [...sel.options].some(o => o.value === valor)) sel.value = valor;
+    };
+
+    setSeExiste('filterArea',   state.area   || '');
+    setSeExiste('filterResp',   state.resp   || '');
+    setSeExiste('filterStatus', state.status || '');
+    document.getElementById('searchInput').value = state.search || '';
+    showOnlyLate = !!state.showOnlyLate;
+  } catch (e) { /* sem filtros salvos */ }
+}
+
+/* ==============================================================
+   AUTO-REFRESH + INDICADOR DE "ATUALIZADO HÁ X"
+   ============================================================== */
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    // Só atualiza se a aba está visível (poupa quota e bateria)
+    if (!document.hidden) loadData();
+  }, AUTO_REFRESH_MS);
+}
+
+function updateRelativeTime() {
+  if (!lastLoadTimestamp) return;
+  const el = document.getElementById('lastUpdate');
+  if (!el) return;
+
+  const segs = Math.floor((Date.now() - lastLoadTimestamp) / 1000);
+  let texto;
+  if      (segs < 30)    texto = 'Atualizado agora';
+  else if (segs < 60)    texto = 'Atualizado há ' + segs + 's';
+  else if (segs < 3600)  texto = 'Atualizado há ' + Math.floor(segs / 60) + ' min';
+  else                   texto = 'Atualizado há ' + Math.floor(segs / 3600) + 'h';
+  el.textContent = texto;
+}
+
+
+
+async function loadData() {
+  const overlay = document.getElementById('loadingOverlay');
+  const btn = document.getElementById('refreshBtn');
+  overlay.style.display = 'grid';
+  btn.classList.add('loading');
+
+  // Caso o link ainda não tenha sido configurado, mostra dados de exemplo
+  if (!CSV_URL || CSV_URL.includes('COLE_AQUI')) {
+    showBanner('warning',
+      '<strong>Configuração pendente:</strong> insira o link CSV do Google Sheets na variável <code>CSV_URL</code> dentro do código (procure por "COLE_AQUI"). Exibindo dados de exemplo abaixo.'
+    );
+    allData = getSampleData();
+    afterLoad();
+    return;
+  }
+
+  try {
+    // Adiciona timestamp para forçar bypass de cache do navegador
+    const url = CSV_URL + (CSV_URL.includes('?') ? '&' : '?') + '_t=' + Date.now();
+
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.errors && results.errors.length > 0) {
+          console.warn('Avisos do parser CSV:', results.errors);
+        }
+
+        // ---------- DIAGNÓSTICO (F12 → Console) ----------
+        // Mostra exatamente o que o CSV entregou. Útil se algum campo aparecer vazio
+        // por divergência de nome de coluna na planilha.
+        if (results.data && results.data.length > 0) {
+          const rawCols = Object.keys(results.data[0]);
+          console.group('%c[Dashboard] Diagnóstico do CSV', 'color:#1e3a5f;font-weight:700;');
+          console.log('Colunas detectadas:', rawCols);
+          console.log('Colunas normalizadas:', rawCols.map(normalizeKey));
+          console.log('1ª linha bruta:', results.data[0]);
+          console.log('1ª linha após mapeamento:', normalizeRow(results.data[0]));
+          console.groupEnd();
+        }
+        // ---------------------------------------------------
+
+        // Filtra linhas totalmente vazias e normaliza chaves
+        allData = (results.data || [])
+          .map(normalizeRow)
+          .filter(r => Object.values(r).some(v => v && String(v).trim()));
+
+        if (allData.length === 0) {
+          showBanner('warning', 'A planilha foi carregada, mas está vazia ou sem registros válidos.');
+        } else {
+          hideBanner();
+        }
+        afterLoad();
+      },
+      error: (err) => {
+        console.error('Erro ao carregar CSV:', err);
+        showBanner('danger',
+          '<strong>Falha ao carregar a planilha.</strong> Verifique se o link está publicado como CSV e acessível publicamente.'
+        );
+        allData = [];
+        afterLoad();
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    showBanner('danger', '<strong>Erro inesperado:</strong> ' + escapeHTML(err.message));
+    allData = [];
+    afterLoad();
+  }
+}
+
+/* --------------------------------------------------------------
+   NORMALIZAÇÃO DE COLUNAS
+   Tolera variações nos cabeçalhos do Google Sheets:
+   - acentos ("Área" = "Area")
+   - maiúsculas/minúsculas
+   - espaços, hífens e underscores intercambiáveis
+   - aliases comuns (ex.: "Nome da Ação" = "Nome_Acao")
+   -------------------------------------------------------------- */
+
+// Converte qualquer cabeçalho para uma chave canônica (sem acento, lowercase, separadores virando _)
+function normalizeKey(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')                      // qualquer não-alfanumérico vira _
+    .replace(/^_+|_+$/g, '');                          // limpa _ nas pontas
+}
+
+// Mapa: chave canônica usada no código  ->  variantes possíveis no CSV (já normalizadas)
+const FIELD_ALIASES = {
+  Assunto_Email: ['assunto_email', 'assunto_e_mail', 'assunto_do_email', 'assunto_do_e_mail', 'assunto', 'subject'],
+  Nome_Acao:     ['nome_acao', 'nome_da_acao', 'acao', 'nome_da_demanda', 'demanda', 'titulo', 'nome'],
+  Data_Entrada:  ['data_entrada', 'data_de_entrada', 'entrada', 'data', 'recebido_em'],
+  Remetente:     ['remetente', 'de', 'enviado_por', 'from'],
+  Link_Email:    ['link_email', 'link_e_mail', 'link_do_email', 'link_do_e_mail', 'link', 'url_email', 'url'],
+  Area:          ['area', 'diretoria', 'departamento', 'setor'],
+  Responsavel:   ['responsavel', 'owner', 'dono', 'responsable'],
+  Prioridade:    ['prioridade', 'priority'],
+  Status:        ['status', 'situacao', 'estado'],
+  Prazo:         ['prazo', 'data_prazo', 'vencimento', 'data_de_vencimento', 'deadline'],
+  Resumo:        ['resumo', 'resumo_executivo', 'resumo_ia', 'sumario', 'summary'],
+  Contagem:      ['contagem', 'qtd_msgs', 'qtde_mensagens', 'mensagens', 'count']
+};
+
+// Converte uma linha bruta do CSV em uma linha com as chaves canônicas que o resto do código espera
+function normalizeRow(rawRow) {
+  // 1) reindexa todas as colunas pelo nome normalizado
+  const lookup = {};
+  for (const k in rawRow) {
+    lookup[normalizeKey(k)] = rawRow[k] != null ? String(rawRow[k]).trim() : '';
+  }
+  // 2) resolve cada campo canônico procurando nos aliases (primeiro alias preenchido vence)
+  const out = {};
+  for (const canonical in FIELD_ALIASES) {
+    out[canonical] = '';
+    for (const alias of FIELD_ALIASES[canonical]) {
+      if (lookup[alias] !== undefined && lookup[alias] !== '') {
+        out[canonical] = lookup[alias];
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+// Etapa pós-carregamento: aciona renderização completa
+function afterLoad() {
+  lastLoadTimestamp = Date.now();
+  updateRelativeTime();
+  // Garante que o relógio relativo está rodando (uma única vez por sessão)
+  if (!relativeTimeTimer) {
+    relativeTimeTimer = setInterval(updateRelativeTime, 30000);  // atualiza a cada 30s
+  }
+  populateFilters();
+  applyFilters();
+  // Tira foto do estado atual das threads para a próxima visita comparar
+  // (executa uma única vez por sessão; auto-refresh não sobrescreve)
+  snapshotCurrentThreadStates();
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('refreshBtn').classList.remove('loading');
+}
+
+/* ==============================================================
+   FILTROS DINÂMICOS - populados a partir dos dados reais
+   ============================================================== */
+function populateFilters() {
+  populateSelect('filterArea', allData.map(r => r.Area).filter(Boolean));
+  populateSelect('filterResp', allData.map(r => r.Responsavel).filter(Boolean));
+  populateSelect('filterStatus', allData.map(r => r.Status).filter(Boolean));
+  // Restaura filtros salvos da última visita (se ainda existirem nas opções)
+  loadFiltersFromStorage();
+}
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  const current = sel.value;
+  // Mantém apenas a primeira opção (placeholder)
+  while (sel.options.length > 1) sel.remove(1);
+  const unique = [...new Set(values)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  unique.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+  if (unique.includes(current)) sel.value = current;
+}
+
+function applyFilters() {
+  const area = document.getElementById('filterArea').value;
+  const resp = document.getElementById('filterResp').value;
+  const status = document.getElementById('filterStatus').value;
+  const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+  filteredData = allData.filter(r => {
+    if (showOnlyLate && !isLate(r)) return false;
+    if (area && r.Area !== area) return false;
+    if (resp && r.Responsavel !== resp) return false;
+    if (status && r.Status !== status) return false;
+    if (search) {
+      const haystack = [
+        getTitle(r), r.Assunto_Email, r.Nome_Acao,
+        r.Area, r.Responsavel, r.Status, r.Resumo,
+        r.Prioridade, r.Remetente
+      ].join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  saveFilters();   // persiste para a próxima visita
+  renderAll();
+}
+
+/* ==============================================================
+   RENDERIZAÇÃO COMPLETA
+   ============================================================== */
+function renderAll() {
+  renderAlertLate();
+  renderKPIs();
+  renderCharts();
+  renderUpcoming();
+  renderTable();
+}
+
+/* ==============================================================
+   BANNER DE ALERTA DE ATRASADAS
+   Conta atrasadas no dataset COMPLETO (não filtrado), porque
+   queremos avisar o usuário mesmo quando ele está com filtros
+   aplicados em outras dimensões.
+   ============================================================== */
+function renderAlertLate() {
+  const banner = document.getElementById('alertLate');
+  const title = document.getElementById('alertLateTitle');
+  const sub = document.getElementById('alertLateSub');
+  const btnText = document.getElementById('alertLateBtnText');
+
+  const totalAtrasadas = allData.filter(isLate).length;
+
+  // Sem atrasadas: esconde o banner por completo
+  if (totalAtrasadas === 0) {
+    banner.style.display = 'none';
+    showOnlyLate = false;     // garante que o filtro não fique preso
+    banner.classList.remove('filter-active');
+    return;
+  }
+
+  // Há atrasadas: mostra banner. Texto muda se filtro está ativo.
+  banner.style.display = 'flex';
+
+  if (showOnlyLate) {
+    banner.classList.add('filter-active');
+    title.textContent = 'Filtro ativo · mostrando ' + totalAtrasadas + ' atrasada(s)';
+    sub.textContent = 'Clique em "Ver E-mail" em cada linha para cobrar uma resposta.';
+    btnText.textContent = 'Mostrar todas';
+  } else {
+    banner.classList.remove('filter-active');
+    const plural = totalAtrasadas === 1 ? 'demanda atrasada precisa' : 'demandas atrasadas precisam';
+    title.textContent = totalAtrasadas + ' ' + plural + ' de ação';
+    sub.textContent = 'Demandas com prazo vencido e ainda em aberto. Cobre uma resposta dos responsáveis.';
+    btnText.textContent = 'Ver atrasadas';
+  }
+}
+
+/* ==============================================================
+   KPIs
+   ============================================================== */
+function renderKPIs() {
+  const total = filteredData.length;
+  const concluidas = filteredData.filter(r => isCompleted(r.Status)).length;
+  const pendentes = total - concluidas;
+  const atrasadas = filteredData.filter(isLate).length;
+  const eficiencia = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+
+  document.getElementById('kpiTotal').textContent = total;
+  document.getElementById('kpiConcluidas').textContent = concluidas;
+  document.getElementById('kpiPendentes').textContent = pendentes;
+  document.getElementById('kpiAtrasadas').textContent = atrasadas;
+  document.getElementById('kpiEficiencia').textContent = `Eficiência: ${eficiencia}%`;
+}
+
+/* ==============================================================
+   GRÁFICOS (Chart.js)
+   ============================================================== */
+function renderCharts() {
+  renderStatusChart();
+  renderAreaChart();
+  renderPriorityChart();
+}
+
+// Conta ocorrências de uma chave nos dados
+function countBy(key) {
+  const map = {};
+  filteredData.forEach(r => {
+    const v = (r[key] || '').trim() || 'Não definido';
+    map[v] = (map[v] || 0) + 1;
+  });
+  return map;
+}
+
+// GRÁFICO 1: Rosca - Status das Demandas (com "Atrasado" derivado)
+function renderStatusChart() {
+  // Conta usando o status visual (que separa Atrasado de Em Andamento)
+  const counts = {};
+  filteredData.forEach(r => {
+    const label = getDisplayStatus(r).label || 'Não definido';
+    counts[label] = (counts[label] || 0) + 1;
+  });
+  const labels = Object.keys(counts);
+  const data = Object.values(counts);
+
+  const colors = labels.map(l => {
+    const s = l.toLowerCase();
+    if (s.includes('atras')) return CHART_COLORS.danger;
+    if (s.includes('conclu') || s.includes('feito') || s.includes('finaliz')) return CHART_COLORS.success;
+    if (s.includes('andamento') || s.includes('progresso')) return CHART_COLORS.info;
+    if (s.includes('imped') || s.includes('bloque')) return CHART_COLORS.danger;
+    if (s.includes('pend') || s.includes('aberto')) return CHART_COLORS.warning;
+    return CHART_COLORS.gray;
+  });
+
+  if (charts.status) charts.status.destroy();
+  charts.status = new Chart(document.getElementById('chartStatus'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 12, padding: 14, font: { family: 'Inter', size: 12, weight: '500' }, color: '#475569' }
+        },
+        tooltip: {
+          backgroundColor: '#0f2942',
+          titleFont: { family: 'Inter', weight: '600' },
+          bodyFont: { family: 'Inter' },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// GRÁFICO 2: Barras - Volume por Área
+function renderAreaChart() {
+  const counts = countBy('Area');
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const labels = sorted.map(e => e[0]);
+  const data = sorted.map(e => e[1]);
+
+  if (charts.area) charts.area.destroy();
+  charts.area = new Chart(document.getElementById('chartArea'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Demandas',
+        data,
+        backgroundColor: CHART_COLORS.navy,
+        hoverBackgroundColor: CHART_COLORS.navyLight,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 48
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f2942',
+          titleFont: { family: 'Inter', weight: '600' },
+          bodyFont: { family: 'Inter' },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: { label: ctx => ` ${ctx.parsed.y} demanda(s)` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { font: { family: 'Inter', size: 12 }, color: '#64748b', precision: 0 },
+          grid: { color: '#e2e8f0', drawBorder: false }
+        },
+        x: {
+          ticks: { font: { family: 'Inter', size: 12, weight: '500' }, color: '#475569' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// GRÁFICO 3 (extra): Barras horizontais - Prioridade
+function renderPriorityChart() {
+  // Ordena por importância: Alta > Média > Baixa > Não definida
+  const order = ['Alta', 'Média', 'Baixa', 'Não definida'];
+  const counts = {};
+  filteredData.forEach(r => {
+    const p = (r.Prioridade || '').trim();
+    let bucket = 'Não definida';
+    if (!p) bucket = 'Não definida';
+    else if (priorityWeight(p) === 1) bucket = 'Alta';
+    else if (priorityWeight(p) === 2) bucket = 'Média';
+    else if (priorityWeight(p) === 3) bucket = 'Baixa';
+    counts[bucket] = (counts[bucket] || 0) + 1;
+  });
+
+  const labels = order.filter(l => counts[l]);
+  const data = labels.map(l => counts[l]);
+  const colors = labels.map(l => {
+    if (l === 'Alta') return CHART_COLORS.danger;
+    if (l === 'Média') return CHART_COLORS.warning;
+    if (l === 'Baixa') return CHART_COLORS.info;
+    return CHART_COLORS.gray;
+  });
+
+  if (charts.priority) charts.priority.destroy();
+  charts.priority = new Chart(document.getElementById('chartPriority'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 36
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f2942',
+          titleFont: { family: 'Inter', weight: '600' },
+          bodyFont: { family: 'Inter' },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: { label: ctx => ` ${ctx.parsed.x} demanda(s)` }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { font: { family: 'Inter', size: 12 }, color: '#64748b', precision: 0 },
+          grid: { color: '#e2e8f0', drawBorder: false }
+        },
+        y: {
+          ticks: { font: { family: 'Inter', size: 13, weight: '600' }, color: '#1e293b' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+/* ==============================================================
+   PRÓXIMOS VENCIMENTOS - Top 5 prazos mais próximos não concluídos
+   ============================================================== */
+function renderUpcoming() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const items = filteredData
+    .filter(r => !isCompleted(r.Status) && parseDate(r.Prazo))
+    .map(r => ({ row: r, date: parseDate(r.Prazo) }))
+    .sort((a, b) => a.date - b.date)
+    .slice(0, 5);
+
+  const list = document.getElementById('upcomingList');
+  if (items.length === 0) {
+    list.innerHTML = `
+      <li class="empty-state" style="border:none;padding:30px 10px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <h3>Sem vencimentos pendentes</h3>
+      </li>`;
+    return;
+  }
+
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  list.innerHTML = items.map(({ row, date }) => {
+    const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+    const isUrgent = diffDays < 0;
+    const isSoon = diffDays >= 0 && diffDays <= 3;
+    const dateClass = isUrgent ? 'urgent' : (isSoon ? 'soon' : '');
+    const tagClass = isUrgent ? 'urgent' : (isSoon ? 'soon' : '');
+    const tagText = isUrgent
+      ? `${Math.abs(diffDays)}d atraso`
+      : (diffDays === 0 ? 'Hoje' : (diffDays === 1 ? 'Amanhã' : `Em ${diffDays}d`));
+
+    return `
+      <li class="upcoming-item">
+        <div class="upcoming-date ${dateClass}">
+          <div class="upcoming-day">${String(date.getDate()).padStart(2,'0')}</div>
+          <div class="upcoming-month">${months[date.getMonth()]}</div>
+        </div>
+        <div class="upcoming-info">
+          <div class="upcoming-title">${escapeHTML(getTitle(row))}</div>
+          <div class="upcoming-meta">${escapeHTML(row.Responsavel || '—')} · ${escapeHTML(row.Area || '—')}</div>
+        </div>
+        <span class="upcoming-tag ${tagClass}">${tagText}</span>
+      </li>
+    `;
+  }).join('');
+}
+
+/* ==============================================================
+   TABELA GERAL com ordenação
+   ============================================================== */
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+
+  if (filteredData.length === 0) {
+    tbody.innerHTML = `
+      <tr class="empty-row">
+        <td colspan="8" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <h3>Nenhuma demanda encontrada</h3>
+          <p>Ajuste os filtros para ver os resultados.</p>
+        </td>
+      </tr>`;
+    return;
+  }
+
+  // Ordena conforme estado atual
+  const sorted = [...filteredData].sort(getSortComparator());
+
+  tbody.innerHTML = sorted.map((row, idx) => {
+    const title = escapeHTML(getTitle(row));
+    const subtitle = getSubtitle(row);
+    const lateClass = isLate(row) ? 'row-late' : '';
+    const link = buildEmailLink(row);
+    const display = getDisplayStatus(row);
+    const novoTag = isNewSinceLastVisit(row)
+      ? '<span class="new-indicator" title="Nova desde sua última visita"></span>'
+      : '';
+    // Badge laranja se a thread teve novas mensagens desde a última visita
+    const activity = getThreadActivity(row);
+    const updateTag = activity.hasUpdate
+      ? `<span class="update-indicator" title="${activity.addedCount} nova(s) mensagem(ns) desde sua última visita. O resumo foi atualizado.">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+             <path d="M21 3v5h-5"/>
+             <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+             <path d="M3 21v-5h5"/>
+           </svg>
+           +${activity.addedCount}
+         </span>`
+      : '';
+
+    const emailLinkHTML = link
+      ? `<a class="email-link" href="${escapeHTML(link)}" target="_blank" rel="noopener noreferrer" title="Abrir e-mail" aria-label="Abrir e-mail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </a>`
+      : `<span class="email-link disabled" title="Sem e-mail vinculado">—</span>`;
+
+    // Botão Finalizar foi removido da tabela para manter o layout limpo.
+    // A finalização continua disponível dentro do drawer (clicar na linha
+    // abre o painel com o botão grande "Finalizar").
+    const finalizeHTML = '';
+
+    return `
+      <tr class="${lateClass}">
+        <td>
+          <div class="cell-title">${novoTag}${title}${updateTag}</div>
+          ${subtitle ? `<div class="cell-subtitle">${escapeHTML(subtitle)}</div>` : ''}
+        </td>
+        <td>${escapeHTML(row.Area || '—')}</td>
+        <td>${escapeHTML(row.Responsavel || '—')}</td>
+        <td><span class="priority-pill ${priorityClass(row.Prioridade)}">${escapeHTML(row.Prioridade || '—')}</span></td>
+        <td><span class="badge ${display.badgeClass}">${escapeHTML(display.label)}</span></td>
+        <td>${formatDate(parseDate(row.Data_Entrada))}</td>
+        <td style="${isLate(row) ? 'color:var(--danger);font-weight:600' : ''}">${formatDate(parseDate(row.Prazo))}</td>
+        <td><div class="row-actions">${emailLinkHTML}${finalizeHTML}</div></td>
+      </tr>
+    `;
+  }).join('');
+
+  // Liga os botões "Finalizar" às respectivas linhas (event delegation simples)
+  tbody.querySelectorAll('.finalize-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();   // não deixa o clique borbulhar pra linha (que abriria o drawer)
+      const idx = parseInt(btn.dataset.rowIdx, 10);
+      if (!Number.isFinite(idx)) return;
+      finalizarDemanda(sorted[idx], btn);
+    });
+  });
+
+  // Botões "Ver E-mail": também não devem abrir o drawer
+  tbody.querySelectorAll('.email-link').forEach(link => {
+    link.addEventListener('click', (e) => e.stopPropagation());
+  });
+
+  // Linha clicável: abre o drawer com os detalhes da demanda
+  tbody.querySelectorAll('tr').forEach((tr, idx) => {
+    if (tr.classList.contains('empty-row')) return;
+    tr.addEventListener('click', () => {
+      if (sorted[idx]) openDrawer(sorted[idx]);
+    });
+  });
+}
+
+// Comparador para ordenação por coluna
+function getSortComparator() {
+  const { column, direction } = sortState;
+  const dir = direction === 'asc' ? 1 : -1;
+
+  return (a, b) => {
+    let va, vb;
+
+    if (column === 'Prioridade') {
+      va = priorityWeight(a.Prioridade);
+      vb = priorityWeight(b.Prioridade);
+    } else if (column === 'Prazo' || column === 'Data_Entrada') {
+      va = parseDate(a[column]);
+      vb = parseDate(b[column]);
+      // Datas nulas sempre no final
+      if (!va && !vb) return 0;
+      if (!va) return 1;
+      if (!vb) return -1;
+      return (va - vb) * dir;
+    } else if (column === 'titulo') {
+      va = getTitle(a).toLowerCase();
+      vb = getTitle(b).toLowerCase();
+    } else {
+      va = (a[column] || '').toLowerCase();
+      vb = (b[column] || '').toLowerCase();
+    }
+
+    if (va < vb) return -1 * dir;
+    if (va > vb) return  1 * dir;
+    return 0;
+  };
+}
+
+/**
+ * Posterga o prazo de uma demanda em N dias chamando o Web App.
+ * Atualização otimista: ao ter sucesso, atualiza Prazo localmente
+ * e re-renderiza tudo. O CSV publicado pode ter cache de minutos.
+ */
+async function postergarDemanda(row, dias, btnEl) {
+  if (!WEB_APP_URL || !WEB_APP_TOKEN) {
+    alert('Recurso de postergar ainda não foi configurado.');
+    return;
+  }
+  if (!Number.isFinite(dias) || dias <= 0 || dias > 365) {
+    alert('Quantidade de dias inválida (use entre 1 e 365).');
+    return;
+  }
+
+  const threadId = extractThreadId(row.Link_Email);
+  if (!threadId) {
+    alert('Não foi possível identificar esta demanda (link inválido na planilha).');
+    return;
+  }
+
+  const botoes = document.querySelectorAll('#drawerPostpone button');
+  botoes.forEach(b => b.disabled = true);
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'postpone',
+        threadId: threadId,
+        dias: dias,
+        token: WEB_APP_TOKEN
+      })
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      alert('Erro ao postergar: ' + (data.erro || 'desconhecido'));
+      botoes.forEach(b => b.disabled = false);
+      return;
+    }
+
+    // Aplica o novo prazo localmente (não espera o cache do CSV)
+    row.Prazo = data.novoPrazo;
+    renderAll();
+
+    // Re-renderiza o drawer com o novo prazo (mantém aberto para o usuário ver)
+    if (currentDrawerRow === row) {
+      document.getElementById('drawerPostpone').classList.remove('open');
+      document.getElementById('drawerPostponeToggle').classList.remove('active');
+      openDrawer(row);
+    }
+
+  } catch (err) {
+    console.error('Falha na chamada ao Web App:', err);
+    alert('Falha de rede ao postergar. Tente novamente em alguns segundos.');
+    botoes.forEach(b => b.disabled = false);
+  }
+}
+
+/* ==============================================================
+   DRAWER DE DETALHES
+   Abre ao clicar em uma linha da tabela. Mostra todas as
+   informações da demanda em um painel lateral deslizante.
+   ============================================================== */
+let currentDrawerRow = null;  // demanda atualmente aberta no drawer
+
+function openDrawer(row) {
+  if (!row) return;
+  currentDrawerRow = row;
+  const drawer = document.getElementById('drawer');
+
+  // --- Cabeçalho: tags (Prioridade + Status) ---
+  const display = getDisplayStatus(row);
+  document.getElementById('drawerTags').innerHTML = `
+    <span class="badge ${priorityBadgeClass(row.Prioridade)}">${escapeHTML(row.Prioridade || 'Sem prioridade')}</span>
+    <span class="badge ${display.badgeClass}">${escapeHTML(display.label)}</span>
+  `;
+
+  // --- Título + subtítulo (mesma lógica da tabela) ---
+  document.getElementById('drawerTitle').textContent = getTitle(row);
+  const sub = document.getElementById('drawerSubtitle');
+  const nome = (row.Nome_Acao || '').trim();
+  const assunto = (row.Assunto_Email || '').trim();
+  if (nome && assunto && nome !== assunto) {
+    sub.textContent = assunto;
+    sub.style.display = '';
+  } else {
+    sub.style.display = 'none';
+  }
+
+  // --- Banner de atrasada ---
+  const lateBanner = document.getElementById('drawerLate');
+  if (isLate(row)) {
+    const prazo = parseDate(row.Prazo);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diffDias = Math.floor((today - prazo) / (1000 * 60 * 60 * 24));
+    document.getElementById('drawerLateText').textContent =
+      `Atrasada há ${diffDias} dia${diffDias > 1 ? 's' : ''}. Cobre uma resposta com urgência.`;
+    lateBanner.style.display = 'flex';
+  } else {
+    lateBanner.style.display = 'none';
+  }
+
+  // --- Banner de atualização (novas mensagens desde a última visita) ---
+  const updateBanner = document.getElementById('drawerUpdate');
+  const activity = getThreadActivity(row);
+  if (activity.hasUpdate) {
+    const plural = activity.addedCount > 1 ? 'novas mensagens' : 'nova mensagem';
+    document.getElementById('drawerUpdateText').textContent =
+      `${activity.addedCount} ${plural} na thread desde sua última visita. O resumo abaixo reflete o estado atual.`;
+    updateBanner.style.display = 'flex';
+  } else {
+    updateBanner.style.display = 'none';
+  }
+
+  // --- Resumo executivo (com fallback de placeholder) ---
+  const summaryEl = document.getElementById('drawerSummary');
+  const resumo = (row.Resumo || '').trim();
+  const ehPlaceholder = !resumo
+    || /aguardando/i.test(resumo)
+    || /erro/i.test(resumo)
+    || resumo.includes('⚠️') || resumo.includes('⚠');
+
+  if (ehPlaceholder) {
+    summaryEl.textContent = 'Resumo da IA ainda não foi gerado para esta demanda. Aguarde a próxima execução do script.';
+    summaryEl.classList.add('placeholder');
+  } else {
+    summaryEl.textContent = resumo;
+    summaryEl.classList.remove('placeholder');
+  }
+
+  // --- Cards de detalhe ---
+  document.getElementById('drawerResp').textContent = row.Responsavel || '—';
+  document.getElementById('drawerArea').textContent = row.Area || '';
+
+  const prazoDate = parseDate(row.Prazo);
+  document.getElementById('drawerPrazo').textContent = formatDate(prazoDate);
+  document.getElementById('drawerPrazoCard').classList.toggle('danger', isLate(row));
+
+  const prazoSub = document.getElementById('drawerPrazoSub');
+  if (prazoDate) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.floor((prazoDate - today) / (1000 * 60 * 60 * 24));
+    if (diff < 0)        prazoSub.textContent = `${Math.abs(diff)} dia(s) atrás`;
+    else if (diff === 0) prazoSub.textContent = 'Vence hoje';
+    else if (diff === 1) prazoSub.textContent = 'Vence amanhã';
+    else                 prazoSub.textContent = `Em ${diff} dias`;
+  } else {
+    prazoSub.textContent = '';
+  }
+
+  document.getElementById('drawerEntrada').textContent = formatDate(parseDate(row.Data_Entrada));
+  // Remetente: tira o e-mail entre <> pra mostrar só o nome
+  const remetente = (row.Remetente || '').replace(/\s*<.+>\s*/, '').trim();
+  document.getElementById('drawerRemetente').textContent = remetente;
+
+  const contagem = parseInt(row.Contagem, 10);
+  document.getElementById('drawerContagem').textContent = Number.isFinite(contagem) && contagem > 0 ? contagem : '—';
+
+  // --- Botões de ação ---
+  const emailBtn = document.getElementById('drawerEmail');
+  const link = buildEmailLink(row);
+  if (link) {
+    emailBtn.href = link;
+    emailBtn.style.display = '';
+  } else {
+    emailBtn.style.display = 'none';
+  }
+
+  const finalizeBtn = document.getElementById('drawerFinalize');
+  const finalizeText = document.getElementById('drawerFinalizeText');
+  const postponeBtn = document.getElementById('drawerPostponeToggle');
+  const postponePanel = document.getElementById('drawerPostpone');
+
+  // Sempre fecha o painel de postergar ao reabrir o drawer
+  postponePanel.classList.remove('open');
+  postponeBtn.classList.remove('active');
+  document.getElementById('postponeCustomInput').value = '';
+  document.querySelectorAll('#drawerPostpone button').forEach(b => b.disabled = false);
+
+  if (isCompleted(row.Status)) {
+    finalizeBtn.classList.add('completed');
+    finalizeBtn.disabled = true;
+    finalizeBtn.style.display = '';
+    finalizeText.textContent = 'Já finalizada';
+    postponeBtn.style.display = 'none';   // não faz sentido adiar uma finalizada
+  } else if (WEB_APP_URL && WEB_APP_TOKEN) {
+    finalizeBtn.classList.remove('completed');
+    finalizeBtn.disabled = false;
+    finalizeBtn.style.display = '';
+    finalizeText.textContent = 'Finalizar';
+    postponeBtn.style.display = '';
+  } else {
+    // Web App não configurado: esconde os botões que dependem dele
+    finalizeBtn.style.display = 'none';
+    postponeBtn.style.display = 'none';
+  }
+
+  // Se nenhum dos botões está visível, esconde o footer inteiro
+  const footer = drawer.querySelector('.drawer-actions');
+  const algumVisivel = (emailBtn.style.display !== 'none') || (finalizeBtn.style.display !== 'none');
+  footer.style.display = algumVisivel ? 'flex' : 'none';
+
+  // --- Abre ---
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+}
+
+function closeDrawer() {
+  const drawer = document.getElementById('drawer');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  currentDrawerRow = null;
+}
+
+
+function setupEvents() {
+  // Botão de atualizar
+  document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+  // Filtros
+  ['filterArea', 'filterResp', 'filterStatus'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFilters)
+  );
+
+  // Busca
+  document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 200));
+
+  // Limpar filtros
+  document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+    document.getElementById('filterArea').value = '';
+    document.getElementById('filterResp').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('searchInput').value = '';
+    showOnlyLate = false;       // o "Limpar" geral também desliga o filtro de atrasadas
+    applyFilters();
+  });
+
+  // Banner de atrasadas: alterna o filtro especial e rola até a tabela
+  document.getElementById('alertLateBtn').addEventListener('click', () => {
+    showOnlyLate = !showOnlyLate;
+    applyFilters();
+    if (showOnlyLate) {
+      // Rola suavemente até a tabela para o usuário já ver as atrasadas
+      const tabela = document.querySelector('.table-card');
+      if (tabela) tabela.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  // Drawer: fechar (clique no X, backdrop ou tecla ESC)
+  document.querySelectorAll('[data-drawer-close]').forEach(el =>
+    el.addEventListener('click', closeDrawer)
+  );
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('drawer').classList.contains('open')) {
+      closeDrawer();
+    }
+  });
+
+  // Drawer: botão Finalizar
+  document.getElementById('drawerFinalize').addEventListener('click', () => {
+    if (!currentDrawerRow) return;
+    finalizarDemanda(currentDrawerRow, document.getElementById('drawerFinalize'));
+  });
+
+  // Drawer: botão Adiar (toggle do painel de postergar)
+  document.getElementById('drawerPostponeToggle').addEventListener('click', () => {
+    const panel = document.getElementById('drawerPostpone');
+    const btn   = document.getElementById('drawerPostponeToggle');
+    panel.classList.toggle('open');
+    btn.classList.toggle('active');
+  });
+
+  // Drawer: botões rápidos de postergar (+1d, +3d, +1sem, +2sem)
+  document.querySelectorAll('.postpone-quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!currentDrawerRow) return;
+      const dias = parseInt(btn.dataset.dias, 10);
+      postergarDemanda(currentDrawerRow, dias, btn);
+    });
+  });
+
+  // Drawer: postergar com valor customizado
+  document.getElementById('postponeCustomBtn').addEventListener('click', () => {
+    if (!currentDrawerRow) return;
+    const input = document.getElementById('postponeCustomInput');
+    const dias = parseInt(input.value, 10);
+    if (!Number.isFinite(dias) || dias <= 0) {
+      input.focus();
+      return;
+    }
+    postergarDemanda(currentDrawerRow, dias);
+  });
+  document.getElementById('postponeCustomInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('postponeCustomBtn').click();
+  });
+
+  // Auto-refresh: ao retornar de outra aba, força um update se passou muito tempo
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && lastLoadTimestamp &&
+        (Date.now() - lastLoadTimestamp) > AUTO_REFRESH_MS) {
+      loadData();
+    }
+  });
+
+  // Ordenação por cabeçalho da tabela
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (sortState.column === col) {
+        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState.column = col;
+        sortState.direction = 'asc';
+      }
+      // Atualiza estado visual dos cabeçalhos
+      document.querySelectorAll('th.sortable').forEach(t => {
+        t.classList.remove('sort-asc', 'sort-desc');
+        const ind = t.querySelector('.sort-indicator');
+        if (ind) ind.textContent = '▲▼';
+      });
+      th.classList.add(sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+      const ind = th.querySelector('.sort-indicator');
+      if (ind) ind.textContent = sortState.direction === 'asc' ? '▲' : '▼';
+
+      renderTable();
+    });
+  });
+}
+
+// Debounce simples para a busca
+function debounce(fn, delay) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), delay);
+  };
+}
+
+/* ==============================================================
+   DADOS DE EXEMPLO - usados quando o link CSV ainda não foi configurado
+   ============================================================== */
+function getSampleData() {
+  const today = new Date();
+  const addDays = n => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + n);
+    return d.toLocaleDateString('pt-BR');
+  };
+  return [
+    { Assunto_Email: 'RE: Aprovação Orçamento 2026', Nome_Acao: 'Aprovar orçamento anual', Data_Entrada: addDays(-12), Remetente: 'Carlos Mendes', Link_Email: 'https://mail.google.com', Area: 'Financeiro', Responsavel: 'Ana Souza', Prioridade: 'Alta', Status: 'Em andamento', Prazo: addDays(2) },
+    { Assunto_Email: 'Proposta de aquisição XYZ', Nome_Acao: 'Avaliar M&A XYZ', Data_Entrada: addDays(-20), Remetente: 'Mariana Lopes', Link_Email: 'https://mail.google.com', Area: 'Estratégia', Responsavel: 'Pedro Lima', Prioridade: 'Alta', Status: 'Pendente', Prazo: addDays(-1) },
+    { Assunto_Email: 'Plano de comunicação Q1', Nome_Acao: '', Data_Entrada: addDays(-5), Remetente: 'Felipe Santos', Link_Email: 'https://mail.google.com', Area: 'Marketing', Responsavel: 'Júlia Costa', Prioridade: 'Média', Status: 'Concluído', Prazo: addDays(-2) },
+    { Assunto_Email: 'Auditoria Compliance', Nome_Acao: 'Resposta auditoria externa', Data_Entrada: addDays(-30), Remetente: 'Roberto Alves', Link_Email: 'https://mail.google.com', Area: 'Jurídico', Responsavel: 'Sandra Reis', Prioridade: 'Alta', Status: 'Impedido', Prazo: addDays(5) },
+    { Assunto_Email: 'Revisão SLA fornecedor', Nome_Acao: 'Renegociar SLA com fornecedor A', Data_Entrada: addDays(-8), Remetente: 'Daniel Rocha', Link_Email: 'https://mail.google.com', Area: 'Operações', Responsavel: 'Bruno Silva', Prioridade: 'Média', Status: 'Em andamento', Prazo: addDays(7) },
+    { Assunto_Email: 'Atualização Headcount', Nome_Acao: 'Aprovar plano de contratações', Data_Entrada: addDays(-3), Remetente: 'Carla Mendonça', Link_Email: 'https://mail.google.com', Area: 'RH', Responsavel: 'Renata Dias', Prioridade: 'Média', Status: 'Pendente', Prazo: addDays(10) },
+    { Assunto_Email: 'Roadmap Tecnologia 2026', Nome_Acao: 'Validar roadmap de TI', Data_Entrada: addDays(-15), Remetente: 'Gustavo Pires', Link_Email: 'https://mail.google.com', Area: 'Tecnologia', Responsavel: 'André Martins', Prioridade: 'Alta', Status: 'Em andamento', Prazo: addDays(3) },
+    { Assunto_Email: 'Resultado NPS Trimestral', Nome_Acao: '', Data_Entrada: addDays(-7), Remetente: 'Patrícia Lima', Link_Email: 'https://mail.google.com', Area: 'Marketing', Responsavel: 'Júlia Costa', Prioridade: 'Baixa', Status: 'Concluído', Prazo: addDays(-4) },
+    { Assunto_Email: 'Revisão Política de Despesas', Nome_Acao: 'Atualizar política T&E', Data_Entrada: addDays(-22), Remetente: 'Henrique Vieira', Link_Email: 'https://mail.google.com', Area: 'Financeiro', Responsavel: 'Ana Souza', Prioridade: 'Baixa', Status: 'Pendente', Prazo: addDays(15) },
+    { Assunto_Email: 'Risco regulatório 2026', Nome_Acao: 'Mapear riscos regulatórios', Data_Entrada: addDays(-10), Remetente: 'Luísa Tavares', Link_Email: 'https://mail.google.com', Area: 'Jurídico', Responsavel: 'Sandra Reis', Prioridade: 'Alta', Status: 'Em andamento', Prazo: addDays(1) },
+    { Assunto_Email: 'Expansão regional', Nome_Acao: 'Análise de viabilidade Nordeste', Data_Entrada: addDays(-25), Remetente: 'Eduardo Reis', Link_Email: 'https://mail.google.com', Area: 'Estratégia', Responsavel: 'Pedro Lima', Prioridade: 'Média', Status: 'Pendente', Prazo: addDays(20) },
+    { Assunto_Email: 'Programa de liderança', Nome_Acao: 'Lançar programa Lidera+', Data_Entrada: addDays(-6), Remetente: 'Tatiane Faria', Link_Email: 'https://mail.google.com', Area: 'RH', Responsavel: 'Renata Dias', Prioridade: 'Média', Status: 'Concluído', Prazo: addDays(-1) }
+  ];
+}
+
+/* ==============================================================
+   INICIALIZAÇÃO
+   ============================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  initVisitTracking();         // marca demandas novas (Data_Entrada)
+  initThreadStatesTracking();  // marca threads com novas mensagens (Contagem subiu)
+  setupEvents();
+  loadData();
+  startAutoRefresh();          // recarrega CSV a cada 5 min
+});
+</script>
+
+</body>
+</html>
