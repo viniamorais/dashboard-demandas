@@ -612,19 +612,16 @@ tr.row-late:hover { background: rgba(220,38,38,0.05); }
 .finalize-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  width: 32px;
   height: 32px;
-  padding: 0 12px;
+  padding: 0;
   background: var(--success-light);
   color: var(--success);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  white-space: nowrap;
   flex-shrink: 0;
 }
 .finalize-btn:hover { background: var(--success); color: white; }
@@ -633,7 +630,7 @@ tr.row-late:hover { background: rgba(220,38,38,0.05); }
   cursor: wait;
   pointer-events: none;
 }
-.finalize-btn svg { width: 13px; height: 13px; }
+.finalize-btn svg { width: 16px; height: 16px; }
 
 .empty-state {
   padding: 60px 20px;
@@ -2974,10 +2971,19 @@ function renderTable() {
         </a>`
       : `<span class="email-link disabled" title="Sem e-mail vinculado">—</span>`;
 
-    // Botão Finalizar foi removido da tabela para manter o layout limpo.
-    // A finalização continua disponível dentro do drawer (clicar na linha
-    // abre o painel com o botão grande "Finalizar").
-    const finalizeHTML = '';
+    // Botão "Finalizar" pequeno (só pra demandas que não estão finalizadas).
+    // Fica ao lado do botão de e-mail, mesmo tamanho, ícone de check verde.
+    // Atalho rápido pra a ação mais comum — equivale a abrir o drawer e
+    // clicar em Finalizar lá. Como é reversível (basta editar o card de
+    // Status), não precisa de confirmação.
+    const podeFinalizar = !isCompleted(row.Status) && WEB_APP_URL && WEB_APP_TOKEN;
+    const finalizeHTML = podeFinalizar
+      ? `<button class="finalize-btn" data-row-idx="${idx}" title="Finalizar demanda" aria-label="Finalizar demanda">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </button>`
+      : '';
 
     return `
       <tr class="${lateClass}">
