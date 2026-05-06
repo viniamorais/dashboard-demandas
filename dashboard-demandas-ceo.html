@@ -933,6 +933,83 @@ tr.row-late:hover { background: rgba(220,38,38,0.05); }
 .drawer-card.danger .drawer-card-value { color: var(--danger); }
 .drawer-card.danger .drawer-card-sub   { color: var(--danger); }
 
+/* ==============================================================
+   EDIÇÃO INLINE NOS CARDS DO DRAWER
+   Cada card editável tem 3 estados:
+   1) Display (default): mostra o valor + ícone discreto de lápis no hover
+   2) Edit: input/select aparece, valor escondido
+   3) Saving: input desabilitado + spinner discreto
+   ============================================================== */
+.drawer-card.editable { position: relative; }
+
+.drawer-card.editable .drawer-card-value {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.drawer-card.editable .drawer-card-value:hover { background: var(--gray-100); }
+
+.drawer-card.editable .drawer-card-value::after {
+  content: '✎';
+  font-size: 11px;
+  color: var(--gray-400);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.drawer-card.editable:hover .drawer-card-value::after { opacity: 1; }
+
+.drawer-card-edit {
+  display: none;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--navy-500);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+  background: var(--white);
+  margin-top: 2px;
+  box-shadow: 0 0 0 3px rgba(58, 110, 165, 0.15);
+}
+.drawer-card-edit:focus { outline: none; }
+.drawer-card-edit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Quando o card está em modo edição: esconde value, mostra input */
+.drawer-card.editing .drawer-card-value { display: none; }
+.drawer-card.editing .drawer-card-edit  { display: block; }
+
+/* Selects nativos precisam de seta customizada */
+select.drawer-card-edit {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+
+/* Spinner pequenininho no canto do card durante o salvamento */
+.drawer-card.saving::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gray-200);
+  border-top-color: var(--navy-700);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 .drawer-actions {
   padding: 16px 32px;
   border-top: 1px solid var(--gray-100);
@@ -1460,26 +1537,67 @@ tbody tr.empty-row { cursor: default; }
       <section class="drawer-section">
         <div class="drawer-section-label">Detalhes da demanda</div>
         <div class="drawer-grid">
-          <div class="drawer-card">
+
+          <!-- Status (editável) -->
+          <div class="drawer-card editable" id="drawerStatusCard">
+            <div class="drawer-card-label">Status</div>
+            <div class="drawer-card-value" id="drawerStatusDisplay">—</div>
+            <select class="drawer-card-edit" id="drawerStatusEdit">
+              <option value="Em Andamento">Em Andamento</option>
+              <option value="Aguardando aprovação">Aguardando aprovação</option>
+              <option value="Pausada">Pausada</option>
+              <option value="Bloqueada">Bloqueada</option>
+              <option value="Finalizada">Finalizada</option>
+            </select>
+          </div>
+
+          <!-- Prioridade (editável) -->
+          <div class="drawer-card editable" id="drawerPrioridadeCard">
+            <div class="drawer-card-label">Prioridade</div>
+            <div class="drawer-card-value" id="drawerPrioridadeDisplay">—</div>
+            <select class="drawer-card-edit" id="drawerPrioridadeEdit">
+              <option value="Alta">Alta</option>
+              <option value="Média">Média</option>
+              <option value="Baixa">Baixa</option>
+            </select>
+          </div>
+
+          <!-- Responsável (editável) -->
+          <div class="drawer-card editable" id="drawerRespCard">
             <div class="drawer-card-label">Responsável</div>
             <div class="drawer-card-value" id="drawerResp">—</div>
-            <div class="drawer-card-sub" id="drawerArea"></div>
+            <input type="text" class="drawer-card-edit" id="drawerRespEdit" maxlength="100" placeholder="Nome do responsável">
           </div>
-          <div class="drawer-card" id="drawerPrazoCard">
+
+          <!-- Área (editável) -->
+          <div class="drawer-card editable" id="drawerAreaCard">
+            <div class="drawer-card-label">Área</div>
+            <div class="drawer-card-value" id="drawerArea">—</div>
+            <input type="text" class="drawer-card-edit" id="drawerAreaEdit" maxlength="100" placeholder="Diretoria/área">
+          </div>
+
+          <!-- Prazo (editável) -->
+          <div class="drawer-card editable" id="drawerPrazoCard">
             <div class="drawer-card-label">Prazo</div>
             <div class="drawer-card-value" id="drawerPrazo">—</div>
+            <input type="date" class="drawer-card-edit" id="drawerPrazoEdit">
             <div class="drawer-card-sub" id="drawerPrazoSub"></div>
           </div>
+
+          <!-- Entrada (read-only — metadado do e-mail) -->
           <div class="drawer-card">
             <div class="drawer-card-label">Entrada</div>
             <div class="drawer-card-value" id="drawerEntrada">—</div>
             <div class="drawer-card-sub" id="drawerRemetente"></div>
           </div>
+
+          <!-- Mensagens (read-only — metadado do e-mail) -->
           <div class="drawer-card">
             <div class="drawer-card-label">Mensagens na thread</div>
             <div class="drawer-card-value" id="drawerContagem">—</div>
             <div class="drawer-card-sub">e-mails trocados</div>
           </div>
+
         </div>
       </section>
     </div>
@@ -2795,6 +2913,172 @@ async function postergarDemanda(row, dias, btnEl) {
 }
 
 /* ==============================================================
+   EDIÇÃO INLINE · helper genérico que chama o endpoint /update
+   ==============================================================
+   Único ponto de gravação pra qualquer campo editável (Status,
+   Prioridade, Responsável, Área, Prazo). Recebe a linha (row), o
+   nome do campo no formato que o backend espera, e o valor novo.
+
+   Atualização otimista: assim que o servidor confirma, a coluna
+   correspondente do row é atualizada localmente e o renderAll()
+   refletir tudo. O CSS do .saving cuida do feedback visual durante
+   a chamada — quem chama isso só precisa gerenciar o classList do
+   card pai.
+
+   Mapa: campo lógico (no row) → nome canônico no backend
+   ============================================================== */
+const FIELD_BACKEND_MAP = {
+  Status:      'Status',
+  Prioridade:  'Prioridade',
+  Responsavel: 'Responsavel',
+  Area:        'Area',
+  Prazo:       'Prazo'
+};
+
+async function updateCampo(row, fieldRow, value) {
+  if (!WEB_APP_URL || !WEB_APP_TOKEN) {
+    alert('Recurso de edição não configurado. Verifique WEB_APP_URL e WEB_APP_TOKEN no código.');
+    return false;
+  }
+
+  const threadId = extractThreadId(row.Link_Email);
+  if (!threadId) {
+    alert('Não foi possível identificar esta demanda (link inválido na planilha).');
+    return false;
+  }
+
+  const fieldBackend = FIELD_BACKEND_MAP[fieldRow] || fieldRow;
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'update',
+        threadId: threadId,
+        field: fieldBackend,
+        value: value,
+        token: WEB_APP_TOKEN
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      alert('Erro ao salvar: ' + (data.erro || 'desconhecido'));
+      return false;
+    }
+    // Atualiza o row localmente com o valor confirmado pelo servidor
+    // (o backend faz transform — ex: Prazo é gravado como DD/MM/YYYY
+    // independente do formato de entrada)
+    row[fieldRow] = data.value;
+    renderAll();
+    return true;
+  } catch (err) {
+    console.error('Falha de rede em updateCampo:', err);
+    alert('Falha de rede ao salvar. Tente novamente em alguns segundos.');
+    return false;
+  }
+}
+
+/* ==============================================================
+   SETUP DOS LISTENERS DE EDIÇÃO INLINE
+   ==============================================================
+   Liga cada um dos 5 cards editáveis ao mesmo padrão de interação:
+     - Clicar no display abre o input/select
+     - Mudar valor (change ou blur) salva via updateCampo
+     - ESC cancela e fecha sem salvar
+   ============================================================== */
+function setupInlineEdit() {
+  const campos = [
+    { card: 'drawerStatusCard',      display: 'drawerStatusDisplay',      edit: 'drawerStatusEdit',      field: 'Status' },
+    { card: 'drawerPrioridadeCard',  display: 'drawerPrioridadeDisplay',  edit: 'drawerPrioridadeEdit',  field: 'Prioridade' },
+    { card: 'drawerRespCard',        display: 'drawerResp',               edit: 'drawerRespEdit',        field: 'Responsavel' },
+    { card: 'drawerAreaCard',        display: 'drawerArea',               edit: 'drawerAreaEdit',        field: 'Area' },
+    { card: 'drawerPrazoCard',       display: 'drawerPrazo',              edit: 'drawerPrazoEdit',       field: 'Prazo' }
+  ];
+
+  campos.forEach(({ card, display, edit, field }) => {
+    const cardEl = document.getElementById(card);
+    const displayEl = document.getElementById(display);
+    const editEl = document.getElementById(edit);
+    if (!cardEl || !displayEl || !editEl) return;
+
+    // Clica no display → entra em modo edição
+    displayEl.addEventListener('click', () => {
+      if (!currentDrawerRow) return;
+      cardEl.classList.add('editing');
+      // Foco diferenciado: select abre dropdown automaticamente em alguns
+      // browsers; input text vai pro fim do texto pra facilitar edição
+      editEl.focus();
+      if (editEl.tagName === 'INPUT' && editEl.type === 'text') {
+        editEl.setSelectionRange(editEl.value.length, editEl.value.length);
+      }
+    });
+
+    // Salva: select e input[type=date] usam 'change' (uma escolha = um save).
+    // Inputs de texto usam 'blur' pra evitar salvar a cada tecla digitada.
+    const eventoSave = (editEl.tagName === 'SELECT' || editEl.type === 'date')
+      ? 'change'
+      : 'blur';
+
+    editEl.addEventListener(eventoSave, async () => {
+      if (!currentDrawerRow) return;
+      const novoValor = editEl.value.trim();
+
+      // Pega o valor antigo do row pra comparar — evita save desnecessário
+      // se o usuário só clicou e clicou fora sem mudar nada
+      const valorAntigo = (currentDrawerRow[field] || '').toString().trim();
+
+      // Pra Prazo, o valorAntigo está em DD/MM/YYYY e o novo em YYYY-MM-DD;
+      // a comparação direta sempre seria diferente. Normaliza pra comparar.
+      let mesmoValor = false;
+      if (field === 'Prazo') {
+        const antigoDate = parseDate(valorAntigo);
+        const antigoIso = antigoDate
+          ? antigoDate.getFullYear() + '-' +
+            String(antigoDate.getMonth() + 1).padStart(2, '0') + '-' +
+            String(antigoDate.getDate()).padStart(2, '0')
+          : '';
+        mesmoValor = (novoValor === antigoIso);
+      } else {
+        mesmoValor = (novoValor.toLowerCase() === valorAntigo.toLowerCase());
+      }
+
+      if (!novoValor || mesmoValor) {
+        // Cancela edição sem chamar API
+        cardEl.classList.remove('editing');
+        return;
+      }
+
+      // Salvando: spinner + input desabilitado
+      cardEl.classList.add('saving');
+      editEl.disabled = true;
+
+      const ok = await updateCampo(currentDrawerRow, field, novoValor);
+
+      cardEl.classList.remove('saving', 'editing');
+      editEl.disabled = false;
+
+      // Re-renderiza o drawer pra refletir o novo estado (badges, banners
+      // de atrasada, etc.) com o valor confirmado
+      if (ok && currentDrawerRow) openDrawer(currentDrawerRow);
+    });
+
+    // ESC cancela
+    editEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        cardEl.classList.remove('editing');
+        editEl.blur();
+      }
+      // Enter em inputs de texto força o save (blur)
+      if (e.key === 'Enter' && editEl.tagName === 'INPUT' && editEl.type === 'text') {
+        e.preventDefault();
+        editEl.blur();
+      }
+    });
+  });
+}
+
+/* ==============================================================
    DRAWER DE DETALHES
    Abre ao clicar em uma linha da tabela. Mostra todas as
    informações da demanda em um painel lateral deslizante.
@@ -2867,12 +3151,45 @@ function openDrawer(row) {
   }
 
   // --- Cards de detalhe ---
-  document.getElementById('drawerResp').textContent = row.Responsavel || '—';
-  document.getElementById('drawerArea').textContent = row.Area || '';
+  // Status (display + select)
+  const statusDisplay = document.getElementById('drawerStatusDisplay');
+  const statusEdit = document.getElementById('drawerStatusEdit');
+  statusDisplay.innerHTML = `<span class="badge ${display.badgeClass}">${escapeHTML(display.label)}</span>`;
+  // Pré-seleciona a opção do select que casa com o status atual.
+  // Tenta match exato primeiro; se não achar (ex: planilha com "Em andamento"
+  // minúsculo), tenta case-insensitive. Se nada bater, default ao primeiro.
+  const statusAtual = (row.Status || '').trim();
+  const opcaoExata = [...statusEdit.options].find(o => o.value === statusAtual);
+  const opcaoFuzzy = [...statusEdit.options].find(o => o.value.toLowerCase() === statusAtual.toLowerCase());
+  statusEdit.value = (opcaoExata || opcaoFuzzy || statusEdit.options[0]).value;
 
+  // Prioridade (display + select)
+  const prioDisplay = document.getElementById('drawerPrioridadeDisplay');
+  const prioEdit = document.getElementById('drawerPrioridadeEdit');
+  prioDisplay.innerHTML = `<span class="badge ${priorityBadgeClass(row.Prioridade)}">${escapeHTML(row.Prioridade || 'Sem prioridade')}</span>`;
+  const prioAtual = (row.Prioridade || '').trim();
+  const prioOpcao = [...prioEdit.options].find(o => o.value.toLowerCase() === prioAtual.toLowerCase());
+  prioEdit.value = (prioOpcao || prioEdit.options[1]).value; // default = "Média"
+
+  // Responsável (display + input)
+  document.getElementById('drawerResp').textContent = row.Responsavel || '—';
+  document.getElementById('drawerRespEdit').value = row.Responsavel || '';
+
+  // Área (display + input)
+  document.getElementById('drawerArea').textContent = row.Area || '—';
+  document.getElementById('drawerAreaEdit').value = row.Area || '';
+
+  // Prazo (display + input date + sub com "em N dias")
   const prazoDate = parseDate(row.Prazo);
   document.getElementById('drawerPrazo').textContent = formatDate(prazoDate);
   document.getElementById('drawerPrazoCard').classList.toggle('danger', isLate(row));
+  // input type=date precisa de YYYY-MM-DD
+  const prazoEditEl = document.getElementById('drawerPrazoEdit');
+  prazoEditEl.value = prazoDate
+    ? prazoDate.getFullYear() + '-' +
+      String(prazoDate.getMonth() + 1).padStart(2, '0') + '-' +
+      String(prazoDate.getDate()).padStart(2, '0')
+    : '';
 
   const prazoSub = document.getElementById('drawerPrazoSub');
   if (prazoDate) {
@@ -2885,6 +3202,13 @@ function openDrawer(row) {
   } else {
     prazoSub.textContent = '';
   }
+
+  // Garante que nenhum card está em modo "edição" ou "saving" ao reabrir
+  document.querySelectorAll('.drawer-card.editable').forEach(c => {
+    c.classList.remove('editing', 'saving');
+    const input = c.querySelector('.drawer-card-edit');
+    if (input) input.disabled = false;
+  });
 
   document.getElementById('drawerEntrada').textContent = formatDate(parseDate(row.Data_Entrada));
   // Remetente: tira o e-mail entre <> pra mostrar só o nome
@@ -3107,6 +3431,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initVisitTracking();         // marca demandas novas (Data_Entrada)
   initThreadStatesTracking();  // marca threads com novas mensagens (Contagem subiu)
   setupEvents();
+  setupInlineEdit();           // habilita edição clicável nos cards do drawer
   loadData();
   startAutoRefresh();          // recarrega CSV a cada 5 min
 });
