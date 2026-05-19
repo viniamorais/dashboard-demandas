@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1841,6 +1842,10 @@ let charts = {};           // Instâncias do Chart.js
 let sortState = { column: 'Prazo', direction: 'asc' };
 let showOnlyLate = false;  // Filtro especial ativado pelo banner de atrasadas
 
+// Liga logs de diagnóstico (CSV detectado, payloads das edições) só quando
+// a URL tem ?debug=1. Em uso normal, console fica limpo.
+const DEBUG = /[?&]debug\b/.test(location.search);
+
 /* Auto-refresh + indicador de tempo */
 const AUTO_REFRESH_MS = 5 * 60 * 1000;  // 5 minutos
 let autoRefreshTimer = null;
@@ -2377,16 +2382,6 @@ async function loadData() {
   overlay.style.display = 'grid';
   btn.classList.add('loading');
 
-  // Caso o link ainda não tenha sido configurado, mostra dados de exemplo
-  if (!CSV_URL || CSV_URL.includes('COLE_AQUI')) {
-    showBanner('warning',
-      '<strong>Configuração pendente:</strong> insira o link CSV do Google Sheets na variável <code>CSV_URL</code> dentro do código (procure por "COLE_AQUI"). Exibindo dados de exemplo abaixo.'
-    );
-    allData = getSampleData();
-    afterLoad();
-    return;
-  }
-
   try {
     // Adiciona timestamp para forçar bypass de cache do navegador
     const url = CSV_URL + (CSV_URL.includes('?') ? '&' : '?') + '_t=' + Date.now();
@@ -2400,10 +2395,9 @@ async function loadData() {
           console.warn('Avisos do parser CSV:', results.errors);
         }
 
-        // ---------- DIAGNÓSTICO (F12 → Console) ----------
-        // Mostra exatamente o que o CSV entregou. Útil se algum campo aparecer vazio
-        // por divergência de nome de coluna na planilha.
-        if (results.data && results.data.length > 0) {
+        // Diagnóstico do CSV (só com ?debug=1 na URL). Útil quando algum campo
+        // aparece vazio por divergência de nome de coluna na planilha.
+        if (DEBUG && results.data && results.data.length > 0) {
           const rawCols = Object.keys(results.data[0]);
           console.group('%c[Dashboard] Diagnóstico do CSV', 'color:#1e3a5f;font-weight:700;');
           console.log('Colunas detectadas:', rawCols);
@@ -2412,7 +2406,6 @@ async function loadData() {
           console.log('1ª linha após mapeamento:', normalizeRow(results.data[0]));
           console.groupEnd();
         }
-        // ---------------------------------------------------
 
         // Filtra linhas totalmente vazias e normaliza chaves
         allData = (results.data || [])
@@ -3160,14 +3153,16 @@ async function updateCampo(row, fieldRow, value) {
 
   const fieldBackend = FIELD_BACKEND_MAP[fieldRow] || fieldRow;
 
-  // Log de diagnóstico: aparece no DevTools (F12 → Console)
-  // Útil pra debugar quando algum campo dá erro de validação no backend
-  console.log('[updateCampo] Enviando:', {
-    field: fieldBackend,
-    value: value,
-    valueLength: typeof value === 'string' ? value.length : null,
-    valueChars: typeof value === 'string' ? Array.from(value).map(c => c.charCodeAt(0)) : null
-  });
+  // Log de diagnóstico (só com ?debug=1). Útil pra debugar erro de validação
+  // no backend — mostra charCode caso seja problema de acento/encoding.
+  if (DEBUG) {
+    console.log('[updateCampo] Enviando:', {
+      field: fieldBackend,
+      value: value,
+      valueLength: typeof value === 'string' ? value.length : null,
+      valueChars: typeof value === 'string' ? Array.from(value).map(c => c.charCodeAt(0)) : null
+    });
+  }
 
   try {
     const res = await fetch(WEB_APP_URL, {
@@ -3182,7 +3177,7 @@ async function updateCampo(row, fieldRow, value) {
       })
     });
     const data = await res.json();
-    console.log('[updateCampo] Resposta:', data);
+    if (DEBUG) console.log('[updateCampo] Resposta:', data);
     if (!data.ok) {
       showToast('Erro ao salvar: ' + (data.erro || 'desconhecido'), 'error');
       return false;
@@ -3653,32 +3648,6 @@ function debounce(fn, delay) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), delay);
   };
-}
-
-/* ==============================================================
-   DADOS DE EXEMPLO - usados quando o link CSV ainda não foi configurado
-   ============================================================== */
-function getSampleData() {
-  const today = new Date();
-  const addDays = n => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + n);
-    return d.toLocaleDateString('pt-BR');
-  };
-  return [
-    { Assunto_Email: 'RE: Aprovação Orçamento 2026', Nome_Acao: 'Aprovar orçamento anual', Data_Entrada: addDays(-12), Remetente: 'Carlos Mendes', Link_Email: 'https://mail.google.com', Area: 'Financeiro', Responsavel: 'Ana Souza', Prioridade: 'Alta', Status: 'Em andamento', Prazo: addDays(2) },
-    { Assunto_Email: 'Proposta de aquisição XYZ', Nome_Acao: 'Avaliar M&A XYZ', Data_Entrada: addDays(-20), Remetente: 'Mariana Lopes', Link_Email: 'https://mail.google.com', Area: 'Estratégia', Responsavel: 'Pedro Lima', Prioridade: 'Alta', Status: 'Pendente', Prazo: addDays(-1) },
-    { Assunto_Email: 'Plano de comunicação Q1', Nome_Acao: '', Data_Entrada: addDays(-5), Remetente: 'Felipe Santos', Link_Email: 'https://mail.google.com', Area: 'Marketing', Responsavel: 'Júlia Costa', Prioridade: 'Média', Status: 'Concluído', Prazo: addDays(-2) },
-    { Assunto_Email: 'Auditoria Compliance', Nome_Acao: 'Resposta auditoria externa', Data_Entrada: addDays(-30), Remetente: 'Roberto Alves', Link_Email: 'https://mail.google.com', Area: 'Jurídico', Responsavel: 'Sandra Reis', Prioridade: 'Alta', Status: 'Impedido', Prazo: addDays(5) },
-    { Assunto_Email: 'Revisão SLA fornecedor', Nome_Acao: 'Renegociar SLA com fornecedor A', Data_Entrada: addDays(-8), Remetente: 'Daniel Rocha', Link_Email: 'https://mail.google.com', Area: 'Operações', Responsavel: 'Bruno Silva', Prioridade: 'Média', Status: 'Em andamento', Prazo: addDays(7) },
-    { Assunto_Email: 'Atualização Headcount', Nome_Acao: 'Aprovar plano de contratações', Data_Entrada: addDays(-3), Remetente: 'Carla Mendonça', Link_Email: 'https://mail.google.com', Area: 'RH', Responsavel: 'Renata Dias', Prioridade: 'Média', Status: 'Pendente', Prazo: addDays(10) },
-    { Assunto_Email: 'Roadmap Tecnologia 2026', Nome_Acao: 'Validar roadmap de TI', Data_Entrada: addDays(-15), Remetente: 'Gustavo Pires', Link_Email: 'https://mail.google.com', Area: 'Tecnologia', Responsavel: 'André Martins', Prioridade: 'Alta', Status: 'Em andamento', Prazo: addDays(3) },
-    { Assunto_Email: 'Resultado NPS Trimestral', Nome_Acao: '', Data_Entrada: addDays(-7), Remetente: 'Patrícia Lima', Link_Email: 'https://mail.google.com', Area: 'Marketing', Responsavel: 'Júlia Costa', Prioridade: 'Baixa', Status: 'Concluído', Prazo: addDays(-4) },
-    { Assunto_Email: 'Revisão Política de Despesas', Nome_Acao: 'Atualizar política T&E', Data_Entrada: addDays(-22), Remetente: 'Henrique Vieira', Link_Email: 'https://mail.google.com', Area: 'Financeiro', Responsavel: 'Ana Souza', Prioridade: 'Baixa', Status: 'Pendente', Prazo: addDays(15) },
-    { Assunto_Email: 'Risco regulatório 2026', Nome_Acao: 'Mapear riscos regulatórios', Data_Entrada: addDays(-10), Remetente: 'Luísa Tavares', Link_Email: 'https://mail.google.com', Area: 'Jurídico', Responsavel: 'Sandra Reis', Prioridade: 'Alta', Status: 'Em andamento', Prazo: addDays(1) },
-    { Assunto_Email: 'Expansão regional', Nome_Acao: 'Análise de viabilidade Nordeste', Data_Entrada: addDays(-25), Remetente: 'Eduardo Reis', Link_Email: 'https://mail.google.com', Area: 'Estratégia', Responsavel: 'Pedro Lima', Prioridade: 'Média', Status: 'Pendente', Prazo: addDays(20) },
-    { Assunto_Email: 'Programa de liderança', Nome_Acao: 'Lançar programa Lidera+', Data_Entrada: addDays(-6), Remetente: 'Tatiane Faria', Link_Email: 'https://mail.google.com', Area: 'RH', Responsavel: 'Renata Dias', Prioridade: 'Média', Status: 'Concluído', Prazo: addDays(-1) }
-  ];
 }
 
 /* ==============================================================
